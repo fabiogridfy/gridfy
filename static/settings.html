@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Gridfy — Configuración</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;
+      --border:#e2e6ec;--border2:#c8d0dc;
+      --brand:#037A68;--brand-light:#04a386;--brand-bg:#e8f5f2;
+      --red:#c0392b;--yellow:#d4920a;
+      --text:#111827;--text2:#4b5563;--muted:#9ca3af;
+      --font:'Montserrat',sans-serif;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px}
+
+    .topbar{height:56px;display:flex;align-items:center;gap:14px;padding:0 24px;
+      background:var(--panel);border-bottom:1px solid var(--border);
+      box-shadow:0 1px 4px rgba(0,0,0,.06);position:sticky;top:0;z-index:100}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-mark{width:32px;height:32px;border-radius:6px;background:var(--brand);
+      display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff}
+    .logo-name{font-weight:800;font-size:17px;color:var(--text)}
+    .logo-name span{color:var(--brand)}
+    .navbar{display:flex;align-items:center;gap:2px;background:var(--panel2);
+      border:1px solid var(--border);border-radius:6px;padding:3px}
+    .nav-item{padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;
+      color:var(--text2);cursor:pointer;transition:all .15s;text-decoration:none;display:block}
+    .nav-item:hover{color:var(--text);background:var(--panel)}
+    .nav-item.active{background:var(--brand);color:#fff}
+    .topbar-spacer{flex:1}
+
+    .page-content{max-width:900px;margin:0 auto;padding:28px 24px}
+    .page-title{font-size:22px;font-weight:800;margin-bottom:4px}
+    .page-sub{font-size:13px;color:var(--text2);margin-bottom:28px}
+
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+      padding:20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    .card-title{font-size:14px;font-weight:700;margin-bottom:4px}
+    .card-sub{font-size:11px;color:var(--muted);margin-bottom:16px}
+
+    .section-title{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+      color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:var(--panel2);border:1px solid var(--border);padding:8px 10px;
+      font-weight:700;text-align:left;font-size:10px;text-transform:uppercase;
+      letter-spacing:.5px;color:var(--muted)}
+    td{border:1px solid var(--border);padding:7px 10px;color:var(--text)}
+    tr:nth-child(even) td{background:var(--panel2)}
+    tr:hover td{background:var(--brand-bg)}
+
+    .btn{padding:7px 14px;border-radius:6px;font-family:var(--font);font-size:12px;
+      font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+    .btn-primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn-primary:hover{background:var(--brand-light)}
+    .btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+    .btn-ghost:hover{color:var(--text);border-color:var(--text2)}
+    .btn-danger{background:transparent;color:var(--red);border-color:var(--red);padding:4px 8px;font-size:11px}
+    .btn-danger:hover{background:var(--red);color:#fff}
+    .btn-sm{padding:4px 10px;font-size:11px}
+
+    .form-row{margin-bottom:10px}
+    .form-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.5px;display:block;margin-bottom:5px}
+    .form-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+      color:var(--text);font-family:var(--font);font-size:12px;padding:7px 10px;outline:none}
+    .form-input:focus{border-color:var(--brand)}
+
+    .search-box{display:flex;gap:8px;margin-bottom:14px}
+    .search-box .form-input{flex:1}
+
+    .toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--panel);
+      border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;
+      font-weight:600;transform:translateY(80px);opacity:0;transition:all .25s;
+      box-shadow:0 4px 16px rgba(0,0,0,.12)}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{border-color:var(--brand);color:var(--brand)}
+    .toast.error{border-color:var(--red);color:var(--red)}
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-mark">G</div>
+    <div><div class="logo-name">Grid<span>fy</span></div></div>
+  </div>
+  <nav class="navbar">
+    <a class="nav-item" href="/">Análisis</a>
+    <a class="nav-item" href="/import.html">Importar red</a>
+    <a class="nav-item active" href="/settings.html">Configuración</a>
+  </nav>
+  <div class="topbar-spacer"></div>
+</header>
+
+<div class="page-content">
+  <div class="page-title">Configuración</div>
+  <div class="page-sub">Gestiona la base de datos de conductores y parámetros del sistema</div>
+
+  <!-- Conductor DB -->
+  <div class="card">
+    <div class="card-title">Base de datos de conductores</div>
+    <div class="card-sub">
+      Parámetros eléctricos de conductores usados en la importación GIS.
+      Los conductores aquí definidos se usan para calcular R/km y X/km en lugar
+      de los valores del GIS (que pueden ser imprecisos).
+    </div>
+
+    <div class="search-box">
+      <input class="form-input" id="cond-search" type="text"
+        placeholder="Buscar conductor…" oninput="filterConductors(this.value)"/>
+      <button class="btn btn-primary btn-sm" onclick="showAddForm()">+ Añadir conductor</button>
+    </div>
+
+    <!-- Add form (hidden by default) -->
+    <div id="add-form" style="display:none;background:var(--brand-bg);border:1px solid #a8d5cc;
+      border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:12px;margin-bottom:10px">Nuevo conductor</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <label class="form-label">Nombre del conductor</label>
+          <input class="form-input" id="new-cond-name" type="text" placeholder="MANGUERA CU(4X16)"/>
+        </div>
+        <div>
+          <label class="form-label">R (Ω/km)</label>
+          <input class="form-input" id="new-cond-r" type="number" step="0.001" placeholder="1.54"/>
+        </div>
+        <div>
+          <label class="form-label">X (Ω/km)</label>
+          <input class="form-input" id="new-cond-x" type="number" step="0.001" placeholder="0.08"/>
+        </div>
+        <div>
+          <label class="form-label">I_max (A)</label>
+          <input class="form-input" id="new-cond-imax" type="number" step="1" placeholder="49"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="addConductor()">Guardar</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-form').style.display='none'">Cancelar</button>
+        <span id="add-status" style="font-size:11px;color:var(--muted);align-self:center;margin-left:8px"></span>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table id="cond-table">
+        <thead>
+          <tr>
+            <th>Conductor</th>
+            <th>R (Ω/km)</th>
+            <th>X (Ω/km)</th>
+            <th>I_max (A)</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cond-tbody">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Transformer defaults -->
+  <div class="card">
+    <div class="card-title">Parámetros estándar de transformadores</div>
+    <div class="card-sub">
+      Valores por defecto según norma IEC 60076 y catálogos ABB/Schneider/Ormazabal.
+      Se usan cuando el GIS no proporciona datos suficientes.
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Potencia (kVA)</th><th>vk (%)</th><th>vkr (%)</th><th>Pfe (kW)</th><th>i0 (%)</th></tr>
+        </thead>
+        <tbody id="trafo-tbody">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let allConductors = [];
+
+async function loadConductors() {
+  const res = await fetch(API+'/api/settings/conductors');
+  if (!res.ok) return;
+  allConductors = await res.json();
+  renderConductors(allConductors);
+}
+
+function renderConductors(list) {
+  const tbody = document.getElementById('cond-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Sin conductores</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td><b>${c.name}</b></td>
+      <td>${c.r_ohm_per_km.toFixed(3)}</td>
+      <td>${c.x_ohm_per_km.toFixed(3)}</td>
+      <td>${(c.i_max_ka*1000).toFixed(0)}</td>
+      <td>
+        <button class="btn btn-danger" onclick="deleteConductor('${c.name.replace(/'/g,"\\'")}')">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filterConductors(q) {
+  const filtered = allConductors.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
+  renderConductors(filtered);
+}
+
+function showAddForm() {
+  document.getElementById('add-form').style.display = '';
+  document.getElementById('new-cond-name').focus();
+}
+
+async function addConductor() {
+  const name = document.getElementById('new-cond-name').value.trim();
+  const r    = parseFloat(document.getElementById('new-cond-r').value);
+  const x    = parseFloat(document.getElementById('new-cond-x').value);
+  const imax = parseFloat(document.getElementById('new-cond-imax').value);
+  const st   = document.getElementById('add-status');
+  if (!name || isNaN(r) || isNaN(x) || isNaN(imax)) {
+    st.style.color='var(--red)'; st.textContent='Rellena todos los campos'; return;
+  }
+  const res = await fetch(API+'/api/settings/conductors', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, r_ohm_per_km:r, x_ohm_per_km:x, i_max_a:imax})
+  });
+  if (res.ok) {
+    st.style.color='var(--brand)'; st.textContent='Guardado';
+    document.getElementById('new-cond-name').value='';
+    document.getElementById('new-cond-r').value='';
+    document.getElementById('new-cond-x').value='';
+    document.getElementById('new-cond-imax').value='';
+    await loadConductors();
+    showToast('Conductor añadido','success');
+    setTimeout(()=>{ document.getElementById('add-form').style.display='none'; st.textContent=''; },1500);
+  } else {
+    st.style.color='var(--red)'; st.textContent='Error al guardar';
+  }
+}
+
+async function deleteConductor(name) {
+  if (!confirm('¿Eliminar "'+name+'" de la BBDD?')) return;
+  const res = await fetch(API+'/api/settings/conductors/'+encodeURIComponent(name), {method:'DELETE'});
+  if (res.ok) { await loadConductors(); showToast('Eliminado','success'); }
+  else showToast('Error al eliminar','error');
+}
+
+async function loadTrafos() {
+  const res = await fetch(API+'/api/settings/transformers');
+  if (!res.ok) return;
+  const data = await res.json();
+  document.getElementById('trafo-tbody').innerHTML = data.map(t => `
+    <tr>
+      <td><b>${t.sn_kva}</b></td>
+      <td>${t.vk}</td><td>${t.vkr}</td>
+      <td>${t.pfe}</td><td>${t.i0}</td>
+    </tr>`).join('');
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',3000);
+}
+
+loadConductors();
+loadTrafos();
+</script>
+</body>
+</html>

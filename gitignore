@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+gridfy.db
+redes/
+*.pickle
+*.p
+.DS_Store
+Thumbs.db

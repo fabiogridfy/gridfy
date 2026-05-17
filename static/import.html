@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Gridfy — Importar red</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;
+      --border:#e2e6ec;--border2:#c8d0dc;
+      --brand:#037A68;--brand-light:#04a386;--brand-bg:#e8f5f2;
+      --red:#c0392b;--red-bg:#fdf0ef;
+      --yellow:#d4920a;--yellow-bg:#fef9ec;
+      --text:#111827;--text2:#4b5563;--muted:#9ca3af;
+      --font:'Montserrat',sans-serif;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px}
+    .topbar{height:56px;display:flex;align-items:center;gap:14px;padding:0 24px;
+      background:var(--panel);border-bottom:1px solid var(--border);
+      box-shadow:0 1px 4px rgba(0,0,0,.06);position:sticky;top:0;z-index:100}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-mark{width:32px;height:32px;border-radius:6px;background:var(--brand);
+      display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff}
+    .logo-name{font-weight:800;font-size:17px;color:var(--text)}
+    .logo-name span{color:var(--brand)}
+    .navbar{display:flex;align-items:center;gap:2px;background:var(--panel2);
+      border:1px solid var(--border);border-radius:6px;padding:3px}
+    .nav-item{padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;
+      color:var(--text2);cursor:pointer;transition:all .15s;text-decoration:none;display:block}
+    .nav-item:hover{color:var(--text);background:var(--panel)}
+    .nav-item.active{background:var(--brand);color:#fff}
+    .topbar-spacer{flex:1}
+    .hint-bar{background:var(--brand);color:#fff;text-align:center;font-size:11px;
+      font-weight:600;padding:6px;display:none;letter-spacing:.3px}
+    .page{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 56px)}
+    .left-panel{background:var(--panel);border-right:1px solid var(--border);
+      overflow-y:auto;display:flex;flex-direction:column}
+    .left-panel::-webkit-scrollbar{width:3px}
+    .left-panel::-webkit-scrollbar-thumb{background:var(--border2)}
+    .panel-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+    .section-title{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+      color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    .form-row{margin-bottom:8px}
+    .form-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.5px;display:block;margin-bottom:4px}
+    .form-input,.form-select{width:100%;background:var(--bg);border:1px solid var(--border2);
+      border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;
+      font-weight:500;padding:7px 10px;outline:none;transition:border-color .15s}
+    .form-input:focus,.form-select:focus{border-color:var(--brand)}
+    .btn{padding:7px 14px;border-radius:6px;font-family:var(--font);font-size:12px;
+      font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+    .btn-primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn-primary:hover{background:var(--brand-light)}
+    .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+    .btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+    .btn-ghost:hover{color:var(--text);border-color:var(--brand)}
+    .btn-danger{background:transparent;color:var(--red);border-color:var(--red)}
+    .btn-danger:hover{background:var(--red);color:#fff}
+    .btn-sm{padding:4px 10px;font-size:11px}
+    .upload-zone{border:2px dashed var(--border2);border-radius:8px;padding:11px;
+      cursor:pointer;transition:border-color .15s;text-align:center}
+    .upload-zone:hover{border-color:var(--brand)}
+    .file-ok{border-color:var(--brand);background:var(--brand-bg)}
+    .upload-zone-label{font-size:11px;font-weight:600;color:var(--text2)}
+    .upload-zone-sub{font-size:10px;color:var(--muted);margin-top:2px}
+    .file-ok .upload-zone-label{color:var(--brand)}
+    /* Issue cards */
+    .issue-card{border-radius:8px;padding:11px;margin-bottom:8px;border:1.5px solid}
+    .issue-ok{background:var(--brand-bg);border-color:var(--brand)}
+    .issue-warn{background:var(--yellow-bg);border-color:#fcd34d}
+    .issue-err{background:var(--red-bg);border-color:#f5c2c2}
+    .issue-title{font-weight:700;font-size:12px;display:flex;align-items:center;
+      justify-content:space-between;gap:6px;margin-bottom:4px}
+    .issue-sub{font-size:11px;color:var(--text2);line-height:1.5}
+    .issue-list{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+    .issue-item{background:var(--panel);border:1px solid var(--border);border-radius:6px;
+      padding:8px 10px;font-size:11px;cursor:pointer;transition:all .15s;display:flex;
+      align-items:center;justify-content:space-between}
+    .issue-item:hover{border-color:var(--brand)}
+    .issue-item.focused{border-color:var(--brand);background:var(--brand-bg);
+      box-shadow:0 0 0 2px rgba(3,122,104,.15)}
+    .issue-item.resolved{opacity:.5;text-decoration:line-through}
+    .issue-item-info{flex:1;min-width:0}
+    .issue-item-name{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .issue-item-sub{color:var(--muted);font-size:10px;margin-top:1px}
+    .badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0}
+    .badge-err{background:var(--red-bg);color:var(--red);border:1px solid #f5c2c2}
+    .badge-warn{background:var(--yellow-bg);color:var(--yellow);border:1px solid #fcd34d}
+    .badge-ok{background:var(--brand-bg);color:var(--brand);border:1px solid #a8d5cc}
+    .badge-done{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+    .stats-row{display:flex;gap:6px;margin-bottom:10px}
+    .stat-mini{flex:1;background:var(--panel2);border:1px solid var(--border);
+      border-radius:7px;padding:7px;text-align:center}
+    .stat-mini-val{font-size:17px;font-weight:800}
+    .stat-mini-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.4px;margin-top:1px;font-weight:600}
+    /* Popup */
+    .map-popup{font-family:Montserrat,sans-serif;font-size:12px;min-width:200px}
+    .map-popup-title{font-weight:800;font-size:13px;margin-bottom:6px;color:#111827}
+    .map-popup-sub{font-size:11px;color:#4b5563;margin-bottom:10px;line-height:1.5}
+    .map-popup-btns{display:flex;flex-direction:column;gap:5px}
+    .map-popup-btn{width:100%;padding:7px 10px;border-radius:6px;font-family:Montserrat,sans-serif;
+      font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+    .map-popup-btn-primary{background:#037A68;color:#fff;border-color:#037A68}
+    .map-popup-btn-primary:hover{background:#04a386}
+    .map-popup-btn-ghost{background:transparent;color:#4b5563;border-color:#c8d0dc}
+    .map-popup-btn-ghost:hover{border-color:#037A68;color:#037A68}
+    .map-popup-btn-danger{background:transparent;color:#c0392b;border-color:#c0392b}
+    .map-popup-btn-danger:hover{background:#c0392b;color:#fff}
+    /* Toast */
+    .toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--panel);
+      border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;
+      font-weight:600;transform:translateY(80px);opacity:0;transition:all .25s;
+      box-shadow:0 4px 16px rgba(0,0,0,.12)}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{border-color:var(--brand);color:var(--brand)}
+    .toast.error{border-color:var(--red);color:var(--red)}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-mark">G</div>
+    <div><div class="logo-name">Grid<span>fy</span></div></div>
+  </div>
+  <nav class="navbar">
+    <a class="nav-item" href="/">Análisis</a>
+    <a class="nav-item active" href="/import.html">Importar red</a>
+    <a class="nav-item" href="/settings.html">Configuración</a>
+  </nav>
+  <div class="topbar-spacer"></div>
+</header>
+
+<!-- Hint bar shown during pick mode -->
+<div class="hint-bar" id="hint-bar">
+  Pincha el bus de destino en el mapa para conectar la isla
+  &nbsp;·&nbsp; <span style="opacity:.7">ESC para cancelar</span>
+</div>
+
+<div class="page">
+  <!-- Left panel -->
+  <div class="left-panel">
+
+    <!-- Upload -->
+    <div class="panel-section">
+      <div class="section-title">Archivos</div>
+      <div class="form-row">
+        <select class="form-select" id="import-format" onchange="onFormatChange(this.value)">
+          <option value="gis">GIS (Tramo_baja + Transformador + Punto_D-C)</option>
+          <option value="excel">Excel Gridfy</option>
+        </select>
+      </div>
+      <div id="gis-files">
+        <div class="form-row">
+          <div class="upload-zone" id="zone-tramos" onclick="document.getElementById('f-tramos').click()">
+            <div class="upload-zone-label" id="lbl-tramos">📄 Tramo_baja.csv *</div>
+            <div class="upload-zone-sub">CSV de tramos BT</div>
+          </div>
+          <input type="file" id="f-tramos" accept=".csv" style="display:none" onchange="onFile('tramos',this)"/>
+        </div>
+        <div class="form-row">
+          <div class="upload-zone" id="zone-trafo" onclick="document.getElementById('f-trafo').click()">
+            <div class="upload-zone-label" id="lbl-trafo">📄 Transformador.csv *</div>
+            <div class="upload-zone-sub">CSV del transformador</div>
+          </div>
+          <input type="file" id="f-trafo" accept=".csv" style="display:none" onchange="onFile('trafo',this)"/>
+        </div>
+        <div class="form-row">
+          <div class="upload-zone" id="zone-loads" onclick="document.getElementById('f-loads').click()">
+            <div class="upload-zone-label" id="lbl-loads">📄 Punto_D-C.csv (opcional)</div>
+          </div>
+          <input type="file" id="f-loads" accept=".csv" style="display:none" onchange="onFile('loads',this)"/>
+        </div>
+      </div>
+      <div id="excel-file" style="display:none">
+        <div class="form-row">
+          <div class="upload-zone" id="zone-excel" onclick="document.getElementById('f-excel').click()">
+            <div class="upload-zone-label" id="lbl-excel">📊 Excel Gridfy</div>
+          </div>
+          <input type="file" id="f-excel" accept=".xlsx,.xls" style="display:none" onchange="onFile('excel',this)"/>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:4px" id="btn-diagnose"
+        onclick="runDiagnosis()" disabled>Analizar red</button>
+      <div id="diag-status" style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="panel-section" id="diag-results" style="display:none">
+      <div class="section-title">
+        Diagnóstico
+        <span id="issues-counter" style="font-size:10px;color:var(--muted)"></span>
+      </div>
+      <div class="stats-row" id="diag-stats"></div>
+      <div id="diag-issues"></div>
+    </div>
+
+    <!-- Import -->
+    <div class="panel-section" id="import-section" style="display:none">
+      <div class="section-title">Importar</div>
+      <div class="form-row">
+        <label class="form-label">Nombre de la red</label>
+        <input class="form-input" id="import-name" type="text" placeholder="CT28 Depósito de Agua"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Descripción</label>
+        <input class="form-input" id="import-desc" type="text" placeholder="Opcional"/>
+      </div>
+      <div id="import-warn" style="font-size:11px;color:var(--yellow);background:var(--yellow-bg);
+        border:1px solid #fcd34d;border-radius:6px;padding:8px 10px;margin-bottom:8px;display:none"></div>
+      <button class="btn btn-primary" style="width:100%" id="btn-import" onclick="doImport()">
+        Importar y abrir en análisis
+      </button>
+      <div id="import-status" style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div id="diag-map" style="position:relative"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API='';
+let diagMap=null, diagData=null;
+let diagLayers={};
+let focusedKey=null;
+let pickMode=null;       // 'island_N' while waiting for bus click
+let pickIslandIdx=null;
+
+// Edit state — user corrections applied on top of diagnose result
+const edits = {
+  openedLines: new Set(),          // line names to open (bucles)
+  islandActions: {},               // i -> {action:'connect'|'delete'|'move', target_bus?}
+};
+
+// Map layer references for interaction
+const loopPolylines = {};          // line_name -> L.polyline
+const islandLayers  = {};          // i -> [L layers]
+const busMarkerMap  = {};          // bus_name -> {ll:[lat,lon]}
+
+const files = {};
+
+// ── Keyboard ESC to cancel pick ───────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape' && pickMode!==null) cancelPick();
+});
+
+function cancelPick() {
+  pickMode=null; pickIslandIdx=null;
+  if (diagMap) diagMap.getContainer().style.cursor='';
+  document.getElementById('hint-bar').style.display='none';
+  showToast('Selección cancelada','');
+}
+
+// ── Format / file ─────────────────────────────────────────────────────────────
+function onFormatChange(fmt) {
+  document.getElementById('gis-files').style.display  = fmt==='gis'?'':'none';
+  document.getElementById('excel-file').style.display = fmt==='excel'?'':'none';
+  checkReady();
+}
+function onFile(key, input) {
+  files[key]=input.files[0]; if(!files[key]) return;
+  document.getElementById('zone-'+key)?.classList.add('file-ok');
+  const lbl=document.getElementById('lbl-'+key);
+  if(lbl) lbl.textContent='✓ '+files[key].name;
+  checkReady();
+}
+function checkReady() {
+  const fmt=document.getElementById('import-format').value;
+  document.getElementById('btn-diagnose').disabled=
+    fmt==='gis'?!(files.tramos&&files.trafo):!files.excel;
+}
+
+// ── UTM 30N → WGS84 ──────────────────────────────────────────────────────────
+function utmToLatLon(x,y) {
+  const k0=0.9996,a=6378137,e2=0.00669438,lon0=-3*Math.PI/180;
+  const e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+  const xp=x-500000,M=y/k0;
+  const mu=M/(a*(1-e2/4-3*e2**2/64-5*e2**3/256));
+  const p1=mu+(3*e1/2-27*e1**3/32)*Math.sin(2*mu)
+            +(21*e1**2/16-55*e1**4/32)*Math.sin(4*mu)
+            +(151*e1**3/96)*Math.sin(6*mu);
+  const N1=a/Math.sqrt(1-e2*Math.sin(p1)**2);
+  const T1=Math.tan(p1)**2,R1=a*(1-e2)/(1-e2*Math.sin(p1)**2)**1.5;
+  const D=xp/(N1*k0);
+  const lat=p1-(N1*Math.tan(p1)/R1)*(D**2/2-(5+3*T1)*D**4/24);
+  const lon=lon0+(D-(1+2*T1)*D**3/6)/Math.cos(p1);
+  const ld=lat*180/Math.PI,lo=lon*180/Math.PI;
+  if(ld<30||ld>45||lo<-10||lo>5) return [null,null];
+  return [ld,lo];
+}
+
+// ── Init map ──────────────────────────────────────────────────────────────────
+function initMap() {
+  if(diagMap) return;
+  diagMap=L.map('diag-map',{zoomControl:true,maxZoom:25});
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'© Esri',maxZoom:25,maxNativeZoom:19}).addTo(diagMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
+    {attribution:'',maxZoom:25,maxNativeZoom:19,opacity:.6}).addTo(diagMap);
+  diagLayers.ok    = L.layerGroup().addTo(diagMap);
+  diagLayers.loops = L.layerGroup().addTo(diagMap);
+  diagLayers.unsup = L.layerGroup().addTo(diagMap);
+  diagLayers.edits = L.layerGroup().addTo(diagMap);
+  diagMap.on('click', onMapClick);
+}
+
+// ── Diagnose ──────────────────────────────────────────────────────────────────
+async function runDiagnosis() {
+  const btn=document.getElementById('btn-diagnose');
+  const statusEl=document.getElementById('diag-status');
+  btn.disabled=true; btn.textContent='Analizando…';
+  statusEl.textContent='Procesando archivos…'; statusEl.style.color='var(--muted)';
+
+  try {
+    const fd=new FormData();
+    if(document.getElementById('import-format').value==='gis') {
+      fd.append('tramos',files.tramos); fd.append('trafo',files.trafo);
+      if(files.loads) fd.append('loads',files.loads);
+    } else fd.append('file',files.excel);
+
+    const res=await fetch(API+'/api/gis/diagnose',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok){statusEl.style.color='var(--red)';statusEl.textContent='Error: '+(data.detail?.errors?.join(', ')||data.detail);return;}
+
+    diagData=data;
+    edits.openedLines.clear();
+    edits.islandActions={};
+    // Load conductors for popup selector
+    if (!window._conductors || !window._conductors.length) {
+      fetch(API+'/api/settings/conductors').then(r=>r.json()).then(list=>{
+        window._conductors = list;
+      }).catch(()=>{ window._conductors=[]; });
+    }
+
+    statusEl.textContent='';
+    renderPanel(data);
+    initMap();
+    renderMap(data);
+    document.getElementById('diag-results').style.display='';
+    document.getElementById('import-section').style.display='';
+    updateImportWarn();
+
+  } catch(e){statusEl.style.color='var(--red)';statusEl.textContent='Error: '+e.message;}
+  finally{btn.disabled=false;btn.textContent='Re-analizar';checkReady();btn.disabled=false;}
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+function renderPanel(data) {
+  const s=data.summary;
+  document.getElementById('diag-stats').innerHTML=
+    stat(s.buses,'Buses')+stat(s.lines,'Líneas')+
+    stat(s.unsupplied_count,'Islas',s.unsupplied_count>0?'var(--red)':'')+
+    stat(s.loop_count,'Bucles',s.loop_count>0?'var(--yellow)':'');
+
+  const pending = s.unsupplied_count + s.loop_count;
+  document.getElementById('issues-counter').textContent = pending>0 ? pending+' pendientes' : '✓ sin problemas';
+
+  let html='';
+  if(!s.unsupplied_count&&!s.loop_count&&!s.unknown_conductors_count)
+    html='<div class="issue-card issue-ok"><div class="issue-title">✓ Red sin problemas</div><div class="issue-sub">Puedes importar directamente.</div></div>';
+
+  if(s.unsupplied_count>0) {
+    const tb=data.unsupplied.reduce((a,i)=>a+i.bus_count,0);
+    html+='<div class="issue-card issue-err">'+
+      '<div class="issue-title">⚡ Islas sin suministro<span class="badge badge-err">'+s.unsupplied_count+' · '+tb+' buses</span></div>'+
+      '<div class="issue-sub">Pincha cada isla en el mapa o en la lista para ver opciones.</div>'+
+      '<div class="issue-list">'+
+      data.unsupplied.map((isl,i)=>{
+        const act=edits.islandActions[i];
+        const badge=act?'<span class="badge badge-done">'+( act.action==='delete'?'Eliminar':'Conectar')+'</span>':'';
+        return '<div class="issue-item'+(act?' resolved':'')+'" id="isl-item-'+i+'" onclick="focusIsland('+i+')">'+
+          '<div class="issue-item-info">'+
+            '<div class="issue-item-name">Isla '+(i+1)+' — '+isl.bus_count+' bus'+(isl.bus_count>1?'es':'')+'</div>'+
+            '<div class="issue-item-sub">'+(act?( act.action==='delete'?'→ Se eliminará':'→ Conectar a: '+(act.target_bus||isl.nearest_bus||'?').slice(-14)):'Sin decisión')+'</div>'+
+          '</div>'+badge+'</div>';
+      }).join('')+
+      '</div></div>';
+  }
+
+  if(s.loop_count>0) {
+    html+='<div class="issue-card issue-warn">'+
+      '<div class="issue-title">🔄 Bucles<span class="badge badge-warn">'+s.loop_count+'</span></div>'+
+      '<div class="issue-sub">Pincha la línea naranja en el mapa para abrirla.</div>'+
+      '<div class="issue-list">'+
+      data.loops.map((loop,li)=>{
+        const openedInLoop = loop.lines.filter(l=>edits.openedLines.has(l.line));
+        const done = openedInLoop.length>0;
+        return '<div class="issue-item'+(done?' resolved':'')+'" id="loop-item-'+li+'" onclick="focusLoop('+li+')">'+
+          '<div class="issue-item-info">'+
+            '<div class="issue-item-name">Bucle '+(li+1)+' — '+loop.cycle.length+' nodos</div>'+
+            '<div class="issue-item-sub">'+(done?'→ Línea abierta: '+openedInLoop[0].line:'Pincha la línea naranja en el mapa')+'</div>'+
+          '</div>'+
+          (done?'<span class="badge badge-done">Abierto</span>':'')+
+        '</div>';
+      }).join('')+
+      '</div></div>';
+  }
+
+  if(data.unknown_conductors.length>0) {
+    html+='<div class="issue-card issue-warn">'+
+      '<div class="issue-title">📋 Conductores sin BBDD<span class="badge badge-warn">'+data.unknown_conductors.length+'</span></div>'+
+      '<div class="issue-sub">Parámetros estimados. Añádelos en <a href="/settings.html" style="color:var(--brand)">Configuración</a>.</div>'+
+      '</div>';
+  }
+
+  document.getElementById('diag-issues').innerHTML=html;
+}
+
+function stat(v,l,c=''){
+  return '<div class="stat-mini"><div class="stat-mini-val" style="color:'+(c||'var(--brand)')+'">'+v+'</div><div class="stat-mini-lbl">'+l+'</div></div>';
+}
+
+// ── Map render ────────────────────────────────────────────────────────────────
+function renderMap(data) {
+  Object.values(diagLayers).forEach(l=>l.clearLayers());
+  Object.keys(loopPolylines).forEach(k=>delete loopPolylines[k]);
+  Object.keys(islandLayers).forEach(k=>delete islandLayers[k]);
+  Object.keys(busMarkerMap).forEach(k=>delete busMarkerMap[k]);
+
+  const islandBusSet=new Set((data.unsupplied||[]).flatMap(isl=>isl.buses||[isl.bus]));
+
+  // Build bus lat/lon lookup
+  (data.buses_map||[]).forEach(b=>{
+    const ll=utmToLatLon(b.x,b.y);
+    if(ll[0]) busMarkerMap[b.name]={ll, status:b.status};
+  });
+
+  // Lines — visible + wide transparent hit area
+  (data.lines_map||[]).forEach(l=>{
+    const [la1,lo1]=utmToLatLon(l.from_x,l.from_y);
+    const [la2,lo2]=utmToLatLon(l.to_x,l.to_y);
+    if(!la1||!la2) return;
+    const isOpen  = edits.openedLines.has(l.name);
+    const color   = isOpen?'#9ca3af':l.is_loop?'#f97316':'#037A68';
+    const weight  = l.is_loop?4:3;
+    const dash    = isOpen?'4 4':l.is_loop?'8 4':null;
+    const opacity = isOpen?.4:l.is_loop?1:.85;
+    const layer   = l.is_loop?diagLayers.loops:diagLayers.ok;
+
+    // Visible line
+    const pl = L.polyline([[la1,lo1],[la2,lo2]],
+      {color,weight,dashArray:dash,opacity,interactive:false}).addTo(layer);
+    if(l.is_loop) loopPolylines[l.name]=pl;
+
+    // Wide invisible hit area (always interactive)
+    L.polyline([[la1,lo1],[la2,lo2]],{color:'#000',weight:8,opacity:0.001,interactive:true})
+      .on('click', e=>{
+        L.DomEvent.stopPropagation(e);
+        if(l.is_loop && !isOpen) {
+          const li=(diagData.loops||[]).findIndex(lp=>lp.lines.some(x=>x.line===l.name));
+          openLoopLinePopup(l, li, pl, e.latlng);
+        } else {
+          openLineInfoPopup(l, e.latlng);
+        }
+      })
+      .bindTooltip(
+        '<b>'+(l.is_loop&&!isOpen?'🔄 BUCLE: ':'')+l.name+'</b>'+
+        (l.conductor?'<br><span style="color:#CEFF1A">'+l.conductor+'</span>':'')+
+        (l.length_m?' · '+l.length_m+'m':''),
+        {className:'tt-import',sticky:true}
+      )
+      .addTo(layer);
+  });
+
+  // Normal buses
+  (data.buses_map||[]).forEach(b=>{
+    if(islandBusSet.has(b.name)) return;
+    const {ll}=busMarkerMap[b.name]||{};
+    if(!ll||!ll[0]) return;
+    L.circleMarker(ll,{radius:3,fillColor:'#037A68',color:'#fff',weight:1,fillOpacity:.75})
+      .addTo(diagLayers.ok);
+  });
+
+  // Islands
+  (data.unsupplied||[]).forEach((isl,i)=>{
+    islandLayers[i]=[];
+    (isl.buses||[isl.bus]).forEach(bn=>{
+      const bm=busMarkerMap[bn]; if(!bm||!bm.ll[0]) return;
+      const m=L.circleMarker(bm.ll,{radius:5,fillColor:'#c0392b',color:'#fff',weight:1.5,fillOpacity:.9})
+        .addTo(diagLayers.unsup);
+      islandLayers[i].push(m);
+    });
+    // Main marker at connection point
+    const fll=isl.connect_from_x?utmToLatLon(isl.connect_from_x,isl.connect_from_y):[null,null];
+    if(fll[0]) {
+      const main=L.circleMarker(fll,{radius:9,fillColor:'#c0392b',color:'#fff',weight:2,fillOpacity:1})
+        .addTo(diagLayers.unsup);
+      main.on('click',e=>{L.DomEvent.stopPropagation(e); openIslandPopup(isl,i,main,fll);});
+      main.bindTooltip('<b>⚡ Isla '+(i+1)+'</b> — '+isl.bus_count+' buses<br><i>Click para ver opciones</i>',{className:'tt-import'});
+      islandLayers[i].push(main);
+    }
+    // Proposed connection line
+    const action=edits.islandActions[i];
+    const targetBus=action?.target_bus||isl.nearest_bus;
+    const tBm=targetBus?busMarkerMap[targetBus]:null;
+    if(fll[0]&&tBm?.ll[0]) {
+      const connColor=action?'#037A68':'#c0392b';
+      const pl=L.polyline([fll,tBm.ll],{color:connColor,weight:2,dashArray:'8 4',opacity:.8}).addTo(diagLayers.unsup);
+      const dot=L.circleMarker(tBm.ll,{radius:6,fillColor:connColor,color:'#fff',weight:1.5,fillOpacity:.9}).addTo(diagLayers.unsup);
+      islandLayers[i].push(pl,dot);
+    }
+  });
+
+  // Fit bounds
+  const allPts=Object.values(busMarkerMap).filter(b=>b.ll[0]).map(b=>b.ll);
+  if(allPts.length) diagMap.fitBounds(L.latLngBounds(allPts),{padding:[30,30]});
+  renderLegend(data);
+}
+
+// ── Popups ────────────────────────────────────────────────────────────────────
+function openIslandPopup(isl, i, marker, ll) {
+  const act = edits.islandActions[i];
+  const targetBus = act?.target_bus || isl.nearest_bus || '?';
+  const distM = act?.dist_m || isl.nearest_dist_m || '?';
+  const conductors = window._conductors || [];
+  const suggested  = isl.suggested_conductor || 'MANGUERA CU(4X6)';
+  const condOptions = conductors.map(c=>
+    '<option value="'+c.name+'"'+(c.name===suggested?' selected':'')+'>'+c.name+'</option>'
+  ).join('');
+
+  const content = document.createElement('div');
+  content.className = 'map-popup';
+  content.innerHTML =
+    '<div class="map-popup-title">⚡ Isla '+(i+1)+' — '+isl.bus_count+' bus'+(isl.bus_count>1?'es':'')+'</div>'+
+    '<div class="map-popup-sub" style="margin-bottom:8px">'+
+      'Bus de conexión:<br><b>'+targetBus.slice(-20)+'</b>'+
+      (distM!=='?'?' ('+distM+' m)':'')+
+      '<br><span style="font-size:10px;color:#6b7280">Conductor sugerido: '+suggested+'</span>'+
+    '</div>'+
+    // Conductor selector
+    '<div style="margin-bottom:8px">'+
+      '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;'+
+        'letter-spacing:.5px;margin-bottom:4px">Conductor de la nueva línea</div>'+
+      '<select id="pp-conductor" style="width:100%;font-family:Montserrat,sans-serif;'+
+        'font-size:11px;padding:5px 8px;border:1px solid #c8d0dc;border-radius:5px;'+
+        'background:#f5f6f8;color:#111827">'+condOptions+'</select>'+
+    '</div>'+
+    '<div class="map-popup-btns">'+
+      '<button class="map-popup-btn map-popup-btn-primary" id="pp-connect">'+
+        '✓ Conectar al bus propuesto</button>'+
+      '<button class="map-popup-btn map-popup-btn-ghost" id="pp-move">'+
+        '📍 Elegir otro bus en el mapa</button>'+
+      '<button class="map-popup-btn map-popup-btn-danger" id="pp-delete">'+
+        '✕ Eliminar isla</button>'+
+    '</div>';
+
+  const popup = L.popup({maxWidth:260, className:'popup-gridfy'})
+    .setLatLng(ll).setContent(content).openOn(diagMap);
+
+  content.querySelector('#pp-connect').onclick = () => {
+    const conductor = content.querySelector('#pp-conductor').value;
+    edits.islandActions[i] = {
+      action: 'connect',
+      target_bus:   isl.nearest_bus,
+      connect_from: isl.connect_from,
+      conductor,
+      dist_m: isl.nearest_dist_m,
+    };
+    diagMap.closePopup();
+    applyEditsToMap(); renderPanel(diagData); updateImportWarn();
+    showToast('Isla '+(i+1)+' → conectar ('+conductor.slice(0,20)+')', 'success');
+  };
+
+  content.querySelector('#pp-move').onclick = () => {
+    // Store conductor choice before switching to pick mode
+    const conductor = content.querySelector('#pp-conductor').value;
+    edits._pendingConductor = conductor;
+    diagMap.closePopup();
+    startIslandPick(i);
+  };
+
+  content.querySelector('#pp-delete').onclick = () => {
+    edits.islandActions[i] = {action:'delete'};
+    diagMap.closePopup();
+    applyEditsToMap(); renderPanel(diagData); updateImportWarn();
+    showToast('Isla '+(i+1)+' → se eliminará al importar', 'success');
+  };
+}
+
+function openLoopLinePopup(line, li, pl, latlng) {
+  const isOpen=edits.openedLines.has(line.name);
+  const content=document.createElement('div');
+  content.className='map-popup';
+  content.innerHTML=
+    '<div class="map-popup-title">'+(isOpen?'Línea abierta':'🔄 Bucle: ')+line.name+'</div>'+
+    '<div class="map-popup-sub">'+line.name+'</div>'+
+    '<div class="map-popup-btns">'+
+      (!isOpen?'<button class="map-popup-btn map-popup-btn-primary" id="pp-open">✂ Abrir esta línea</button>':
+               '<button class="map-popup-btn map-popup-btn-ghost" id="pp-close">↩ Cerrar línea (reactivar)</button>')+
+    '</div>';
+
+  const popup=L.popup({maxWidth:220,className:'popup-gridfy'}).setLatLng(latlng).setContent(content).openOn(diagMap);
+
+  if(!isOpen) {
+    content.querySelector('#pp-open').onclick=()=>{
+      edits.openedLines.add(line.name);
+      diagMap.closePopup(); applyEditsToMap(); renderPanel(diagData); updateImportWarn();
+      showToast('Línea abierta: '+line.name,'success');
+    };
+  } else {
+    content.querySelector('#pp-close').onclick=()=>{
+      edits.openedLines.delete(line.name);
+      diagMap.closePopup(); applyEditsToMap(); renderPanel(diagData); updateImportWarn();
+      showToast('Línea reactivada: '+line.name,'');
+    };
+  }
+}
+
+// ── Pick mode for island manual connection ────────────────────────────────────
+function startIslandPick(i) {
+  pickMode='island'; pickIslandIdx=i;
+  diagMap.getContainer().style.cursor='crosshair';
+  document.getElementById('hint-bar').style.display='block';
+  showToast('Pincha el bus de destino en el mapa','success');
+}
+
+function onMapClick(e) {
+  if(pickMode!=='island') return;
+  // Find nearest bus
+  let nearest=null, minD=Infinity;
+  Object.entries(busMarkerMap).forEach(([name,b])=>{
+    if(!b.ll[0]) return;
+    const d=diagMap.distance(e.latlng,L.latLng(b.ll));
+    if(d<minD){minD=d;nearest=name;}
+  });
+  if(!nearest||minD>200) { showToast('Pincha más cerca de un bus','error'); return; }
+
+  const isl = diagData.unsupplied[pickIslandIdx];
+  const conductor = edits._pendingConductor || 'MANGUERA CU(4X6)';
+  // Compute distance
+  const fx = isl.connect_from_x || isl.x || 0;
+  const fy = isl.connect_from_y || isl.y || 0;
+  const bm = busMarkerMap[nearest];
+  let distM = '?';
+  if (bm && fx && fy) {
+    // UTM distance approximation
+    const tx = isl.x, ty = isl.y; // fallback
+    distM = Math.round(diagMap.distance(
+      L.latLng(utmToLatLon(fx,fy)),
+      L.latLng(bm.ll)
+    ));
+  }
+  edits.islandActions[pickIslandIdx] = {
+    action: 'move',
+    target_bus:   nearest,
+    connect_from: isl.connect_from,
+    conductor,
+    dist_m: distM,
+  };
+  delete edits._pendingConductor;
+  pickMode=null; pickIslandIdx=null;
+  diagMap.getContainer().style.cursor='';
+  document.getElementById('hint-bar').style.display='none';
+  applyEditsToMap(); renderPanel(diagData); updateImportWarn();
+  showToast('Bus de conexión: '+nearest.slice(-16)+' ('+distM+'m)', 'success');
+}
+
+// ── Apply edits visually ──────────────────────────────────────────────────────
+function applyEditsToMap() {
+  if(!diagData) return;
+  // Redraw loops with open state
+  diagData.lines_map.forEach(l=>{
+    const pl=loopPolylines[l.name]; if(!pl) return;
+    const isOpen=edits.openedLines.has(l.name);
+    pl.setStyle({
+      color:isOpen?'#9ca3af':'#f97316',
+      dashArray:isOpen?'4 4':'8 4',
+      opacity:isOpen?.4:1, weight:isOpen?1.5:3
+    });
+  });
+  // Redraw island connection lines
+  diagLayers.unsup.clearLayers();
+  const islandBusSet=new Set((diagData.unsupplied||[]).flatMap(isl=>isl.buses||[isl.bus]));
+  (diagData.buses_map||[]).forEach(b=>{
+    if(!islandBusSet.has(b.name)) return;
+    const bm=busMarkerMap[b.name]; if(!bm?.ll[0]) return;
+    L.circleMarker(bm.ll,{radius:5,fillColor:'#c0392b',color:'#fff',weight:1.5,fillOpacity:.9})
+      .addTo(diagLayers.unsup);
+  });
+  (diagData.unsupplied||[]).forEach((isl,i)=>{
+    islandLayers[i]=[];
+    const act=edits.islandActions[i];
+    if(act?.action==='delete') return; // hide deleted
+    const fll=isl.connect_from_x?utmToLatLon(isl.connect_from_x,isl.connect_from_y):[null,null];
+    if(!fll[0]) return;
+    const main=L.circleMarker(fll,{
+      radius:9,fillColor:act?'#037A68':'#c0392b',color:'#fff',weight:2,fillOpacity:1
+    }).addTo(diagLayers.unsup);
+    main.on('click',e=>{L.DomEvent.stopPropagation(e);openIslandPopup(isl,i,main,fll);});
+    main.bindTooltip('<b>'+(act?'✓':'⚡')+' Isla '+(i+1)+'</b><br><i>Click para cambiar</i>',{className:'tt-import'});
+    islandLayers[i].push(main);
+    const targetBus=act?.target_bus||isl.nearest_bus;
+    const tBm=targetBus?busMarkerMap[targetBus]:null;
+    if(tBm?.ll[0]) {
+      const col=act?'#037A68':'#c0392b';
+      const pl=L.polyline([fll,tBm.ll],{color:col,weight:2,dashArray:'8 4',opacity:.85}).addTo(diagLayers.unsup);
+      const dot=L.circleMarker(tBm.ll,{radius:6,fillColor:col,color:'#fff',weight:1.5,fillOpacity:.95}).addTo(diagLayers.unsup);
+      islandLayers[i].push(pl,dot);
+    }
+  });
+}
+
+// ── Focus / dim ───────────────────────────────────────────────────────────────
+function dimAll() {
+  diagLayers.ok.eachLayer(l=>{if(l.setStyle)l.setStyle({opacity:.07,fillOpacity:.07});});
+  diagLayers.loops.eachLayer(l=>{if(l.setStyle)l.setStyle({opacity:.07,fillOpacity:.07});});
+  diagLayers.unsup.eachLayer(l=>{if(l.setStyle)l.setStyle({opacity:.07,fillOpacity:.07});});
+}
+function restoreAll() {
+  diagLayers.ok.eachLayer(l=>{if(l.setStyle)l.setStyle({opacity:.65,fillOpacity:.75});});
+  Object.values(loopPolylines).forEach(pl=>{
+    const isOpen=diagData&&[...edits.openedLines].some(n=>pl===loopPolylines[n]);
+    pl.setStyle({opacity:isOpen?.4:1});
+  });
+  diagLayers.unsup.eachLayer(l=>{if(l.setStyle)l.setStyle({opacity:1,fillOpacity:.9});});
+  focusedKey=null;
+  document.querySelectorAll('.issue-item').forEach(el=>el.classList.remove('focused'));
+}
+
+function focusIsland(i) {
+  const key='island_'+i;
+  if(focusedKey===key){restoreAll();return;}
+  focusedKey=key;
+  document.querySelectorAll('.issue-item').forEach(el=>el.classList.remove('focused'));
+  document.getElementById('isl-item-'+i)?.classList.add('focused');
+  dimAll();
+  (islandLayers[i]||[]).forEach(l=>{if(l.setStyle)l.setStyle({opacity:1,fillOpacity:1});});
+  // Zoom to island
+  const isl=diagData.unsupplied[i];
+  const pts=(isl.buses||[isl.bus]).map(b=>{const bm=busMarkerMap[b];return bm?.ll[0]?bm.ll:null;}).filter(Boolean);
+  if(pts.length) diagMap.fitBounds(L.latLngBounds(pts),{padding:[80,80],maxZoom:19});
+}
+
+function focusLoop(li) {
+  const key='loop_'+li;
+  if(focusedKey===key){restoreAll();return;}
+  focusedKey=key;
+  document.querySelectorAll('.issue-item').forEach(el=>el.classList.remove('focused'));
+  document.getElementById('loop-item-'+li)?.classList.add('focused');
+  dimAll();
+  const loop=diagData.loops[li];
+  loop.lines.forEach(l=>{
+    const pl=loopPolylines[l.line];
+    if(pl) pl.setStyle({opacity:1,weight:4});
+  });
+  // Zoom to loop
+  const pts=loop.cycle.map(b=>{const bm=busMarkerMap[b];return bm?.ll[0]?bm.ll:null;}).filter(Boolean);
+  if(pts.length) diagMap.fitBounds(L.latLngBounds(pts),{padding:[80,80],maxZoom:20});
+}
+
+// ── Legend ────────────────────────────────────────────────────────────────────
+function renderLegend(data) {
+  if(diagMap._legend) diagMap._legend.remove();
+  const ctrl=L.control({position:'bottomright'});
+  ctrl.onAdd=function(){
+    const d=L.DomUtil.create('div');
+    d.style.cssText='background:rgba(255,255,255,.95);border:1px solid #e2e6ec;border-radius:8px;'+
+      'padding:10px 12px;font-family:Montserrat,sans-serif;font-size:11px;min-width:160px;'+
+      'box-shadow:0 2px 8px rgba(0,0,0,.15)';
+    d.innerHTML='<div style="font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:6px">Leyenda</div>'+
+      row('#037A68','line','Red conectada')+
+      (data.summary.loop_count>0?row('#f97316','dashed','Bucle — click para abrir'):'')+
+      (data.summary.unsupplied_count>0?row('#c0392b','dot','Isla sin suministro — click para conectar')+row('#c0392b','dashed','Conexión propuesta'):'');
+    return d;
+  };
+  ctrl.addTo(diagMap); diagMap._legend=ctrl;
+}
+function row(color,type,label){
+  const el=type==='dot'
+    ?'<div style="width:10px;height:10px;border-radius:50%;background:'+color+';flex-shrink:0"></div>'
+    :'<div style="width:20px;height:3px;background:'+color+';'+(type==='dashed'?'border-top:2px dashed '+color+';background:transparent;':'')+'border-radius:2px;flex-shrink:0"></div>';
+  return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+el+'<span>'+label+'</span></div>';
+}
+
+// ── Import warn ───────────────────────────────────────────────────────────────
+function updateImportWarn() {
+  if(!diagData) return;
+  const warns=[];
+  const undecided=(diagData.unsupplied||[]).filter((_,i)=>!edits.islandActions[i]);
+  if(undecided.length) warns.push(undecided.length+' isla(s) sin decisión → se conectarán al bus más cercano');
+  const openedCount=edits.openedLines.size;
+  const totalLoops=diagData.summary.loop_count;
+  if(totalLoops>openedCount) warns.push((totalLoops-openedCount)+' bucle(s) permanecerán cerrados');
+  if(diagData.unknown_conductors.length) warns.push(diagData.unknown_conductors.length+' conductor(es) con parámetros estimados');
+  const warnEl=document.getElementById('import-warn');
+  warnEl.style.display=warns.length?'':'none';
+  warnEl.innerHTML=warns.map(w=>'⚠ '+w).join('<br>');
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+async function doImport() {
+  const name=document.getElementById('import-name').value.trim();
+  const desc=document.getElementById('import-desc').value.trim();
+  const statusEl=document.getElementById('import-status');
+  const btn=document.getElementById('btn-import');
+  if(!name){statusEl.textContent='Introduce un nombre';return;}
+  btn.disabled=true; btn.textContent='Importando…';
+  statusEl.style.color='var(--muted)'; statusEl.textContent='Procesando…';
+  try {
+    const fmt=document.getElementById('import-format').value;
+    const fd=new FormData();
+    if(fmt==='gis'){fd.append('tramos',files.tramos);fd.append('trafo',files.trafo);if(files.loads)fd.append('loads',files.loads);}
+    else fd.append('file',files.excel);
+    fd.append('name',name); fd.append('description',desc); fd.append('voltage','BT');
+    // Pass decisions
+    const decisions={
+      opened_lines:[...edits.openedLines],
+      island_actions:Object.entries(edits.islandActions).map(([i,act])=>({island_idx:parseInt(i),...act})),
+    };
+    fd.append('decisions',JSON.stringify(decisions));
+    const endpoint=fmt==='gis'?'/api/gis/import':'/api/grids/upload';
+    const res=await fetch(API+endpoint,{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok){statusEl.style.color='var(--red)';statusEl.textContent='Error: '+(data.detail?.errors?.join(', ')||data.detail||'desconocido');}
+    else{statusEl.style.color='var(--brand)';statusEl.textContent='Importado: '+data.buses+' buses, '+data.lines+' líneas';showToast('Red importada','success');setTimeout(()=>window.location.href='/',1800);}
+  }catch(e){statusEl.style.color='var(--red)';statusEl.textContent='Error: '+e.message;}
+  finally{btn.disabled=false;btn.textContent='Importar y abrir en análisis';}
+}
+
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',3000);
+}
+
+document.head.insertAdjacentHTML('beforeend',`<style>
+.tt-import{background:rgba(17,24,39,.92);border:1px solid rgba(255,255,255,.15);
+  color:#f9fafb;font-family:Montserrat,sans-serif;font-size:11px;padding:7px 11px;
+  border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.tt-import::before{display:none}
+.leaflet-popup-content-wrapper{font-family:Montserrat,sans-serif;border-radius:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);border:1px solid #e2e6ec}
+.leaflet-popup-content{margin:14px}
+.leaflet-popup-tip-container{display:none}
+</style>`);
+
+// ── Line info popup ───────────────────────────────────────────────────────────
+function openLineInfoPopup(line, latlng) {
+  const cond   = line.conductor || 'Desconocido';
+  const len    = line.length_m  ? line.length_m+' m' : '—';
+
+  const content = document.createElement('div');
+  content.className = 'map-popup';
+  content.innerHTML =
+    '<div class="map-popup-title" style="font-size:12px">📐 '+line.name+'</div>'+
+    '<div style="margin:8px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px">'+
+      '<span style="color:#6b7280;font-weight:600">Conductor</span>'+
+      '<span style="font-weight:700;color:#111827">'+cond+'</span>'+
+      '<span style="color:#6b7280;font-weight:600">Longitud</span>'+
+      '<span>'+len+'</span>'+
+    '</div>'+
+    (cond !== 'Desconocido' ?
+      '<button class="map-popup-btn map-popup-btn-ghost" id="pp-use-conductor" '+
+        'style="margin-top:4px;width:100%;font-size:11px">'+
+        '📋 Usar este conductor al conectar isla'+
+      '</button>' : '');
+
+  const popup = L.popup({maxWidth:220, className:'popup-gridfy'})
+    .setLatLng(latlng).setContent(content).openOn(diagMap);
+
+  const useBtn = content.querySelector('#pp-use-conductor');
+  if (useBtn) {
+    useBtn.onclick = () => {
+      // Set as default conductor for next island connection
+      edits._pendingConductor = cond;
+      // Update any open island selector if visible
+      const sel = document.getElementById('pp-conductor');
+      if (sel) {
+        for (const opt of sel.options) {
+          if (opt.value === cond) { sel.value = cond; break; }
+        }
+      }
+      diagMap.closePopup();
+      showToast('Conductor seleccionado: '+cond, 'success');
+    };
+  }
+}
+
+</script>
+</body>
+</html>

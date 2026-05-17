@@ -1,0 +1,2525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Gridfy — Grid Analysis Platform</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f5f6f8;
+      --panel:#ffffff;
+      --panel2:#f0f2f5;
+      --border:#e2e6ec;
+      --border2:#c8d0dc;
+      --brand:#037A68;
+      --brand-light:#04a386;
+      --brand-bg:#e8f5f2;
+      --lime:#CEFF1A;
+      --lime-dim:#b8e514;
+      --green:#037A68;
+      --yellow:#d4920a;
+      --red:#c0392b;
+      --orange:#c05a1a;
+      --purple:#5c3d9e;
+      --text:#111827;
+      --text2:#4b5563;
+      --muted:#9ca3af;
+      --font:'Montserrat',sans-serif;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px}
+    .app{display:grid;grid-template-columns:320px 1fr;grid-template-rows:56px 1fr;height:100vh}
+
+    /* ── Topbar ── */
+    .topbar{
+      grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 20px;
+      background:var(--panel);border-bottom:1px solid var(--border);z-index:1000;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    }
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-mark{
+      width:32px;height:32px;border-radius:6px;
+      background:var(--brand);display:flex;align-items:center;justify-content:center;
+      font-weight:800;font-size:16px;color:#fff;letter-spacing:-1px;flex-shrink:0;
+    }
+    .logo-name{font-weight:800;font-size:17px;color:var(--text);letter-spacing:-0.3px}
+    .logo-name span{color:var(--lime)}
+    .network-badge{
+      background:var(--brand-bg);border:1px solid #a8d5cc;border-radius:20px;
+      padding:3px 12px;font-size:11px;font-weight:600;color:var(--brand);
+      display:flex;align-items:center;gap:6px;
+    }
+    .network-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--brand);flex-shrink:0}
+    .topbar-spacer{flex:1}
+    .status-pill{
+      display:flex;align-items:center;gap:7px;
+      background:var(--panel2);border:1px solid var(--border);border-radius:20px;
+      padding:4px 12px;font-size:11px;color:var(--text2);
+    }
+    .status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .3s;flex-shrink:0}
+    .status-dot.ok{background:var(--brand)}
+    .status-dot.err{background:var(--red)}
+    .status-label{font-size:11px;font-weight:500}
+    .btn{
+      padding:7px 16px;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;
+      cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap;
+      letter-spacing:.3px;
+    }
+    .btn-primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn-primary:hover{background:var(--brand-light);border-color:var(--brand-light)}
+    .btn-primary:disabled{opacity:.35;cursor:not-allowed}
+    .btn-ghost{background:transparent;color:var(--text2);border-color:var(--border2)}
+    .btn-ghost:hover{color:var(--text);border-color:var(--text2)}
+    .btn-brand{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .btn-brand:hover{background:var(--brand-light)}
+    .btn-danger{background:transparent;color:var(--red);border-color:var(--red);padding:4px 10px;font-size:11px}
+    .btn-danger:hover{background:var(--red);color:#fff}
+
+    /* ── Sidebar ── */
+    .sidebar{
+      background:var(--panel);border-right:1px solid var(--border);
+      display:flex;flex-direction:column;overflow:hidden;
+      box-shadow:2px 0 8px rgba(0,0,0,.04);
+    }
+    .sidebar-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 4px}
+    .sidebar-tab{
+      flex:1;padding:14px 2px 12px;text-align:center;font-size:10px;font-weight:700;
+      color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:.6px;
+      text-transform:uppercase;border-bottom:2px solid transparent;position:relative;
+    }
+    .sidebar-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+    .sidebar-tab:hover:not(.active){color:var(--text2)}
+    .sidebar-content{flex:1;overflow-y:auto;padding:16px}
+    .sidebar-content::-webkit-scrollbar{width:3px}
+    .sidebar-content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* ── Section titles ── */
+    .section-title{
+      font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+      color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;
+    }
+    .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+    /* ── Stats ── */
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+    .stat-card{
+      background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+      padding:10px 12px;
+    }
+    .stat-val{font-size:22px;font-weight:800;color:var(--brand);line-height:1}
+    .stat-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+    /* ── Legend ── */
+    .legend-block{margin-bottom:14px}
+    .legend-row{
+      display:flex;align-items:center;gap:9px;padding:5px 0;
+      font-size:11px;font-weight:500;color:var(--text2);
+      border-bottom:1px solid var(--border);
+    }
+    .legend-row:last-child{border-bottom:none}
+    .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .legend-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+    .legend-line{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+
+    /* ── Forms ── */
+    .form-card{
+      background:var(--panel2);border:1px solid var(--border);border-radius:10px;
+      padding:14px;margin-bottom:14px;
+    }
+    .form-row{margin-bottom:10px}
+    .form-row:last-child{margin-bottom:0}
+    .form-label{
+      font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.5px;display:block;margin-bottom:5px;
+    }
+    .form-input,.form-select{
+      width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+      color:var(--text);font-family:var(--font);font-size:12px;font-weight:500;
+      padding:7px 10px;outline:none;transition:border-color .15s;
+    }
+    .form-input:focus,.form-select:focus{border-color:var(--brand)}
+    .form-select option{background:var(--panel2)}
+    .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .form-btns{display:flex;gap:8px;margin-top:12px}
+    .form-btns .btn{flex:1;text-align:center}
+
+    /* ── List items ── */
+    .list-item{
+      background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+      padding:9px 12px;margin-bottom:6px;cursor:pointer;transition:all .15s;
+      display:flex;align-items:center;gap:10px;
+    }
+    .list-item:hover{border-color:var(--border2);background:var(--bg)}
+    .list-item-info{flex:1;min-width:0}
+    .list-item-name{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+    .list-item-sub{font-size:10px;color:var(--muted);margin-top:2px}
+    .badge{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0;letter-spacing:.3px}
+    .badge-load{background:rgba(224,122,53,.15);color:#e07a35;border:1px solid rgba(224,122,53,.3)}
+    .badge-gen{background:rgba(124,92,191,.15);color:#7c5cbf;border:1px solid rgba(124,92,191,.3)}
+
+    /* ── Element panel ── */
+    .el-header{font-weight:800;font-size:14px;color:var(--text);margin-bottom:2px;line-height:1.3}
+    .el-type{font-size:10px;font-weight:700;color:var(--brand-light);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+    .el-kpi-row{display:flex;gap:8px;margin-bottom:14px}
+    .el-kpi{
+      flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+      padding:10px;text-align:center;
+    }
+    .el-kpi-val{font-size:16px;font-weight:800}
+    .el-kpi-unit{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+    .param-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+    .param-label{font-size:11px;font-weight:500;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .param-input{
+      background:#fff;border:1px solid var(--border2);border-radius:5px;color:var(--text);
+      font-family:var(--font);font-size:11px;font-weight:600;padding:4px 8px;width:90px;text-align:right;
+    }
+    .param-input:focus{outline:none;border-color:var(--brand)}
+    .no-sel{text-align:center;padding:48px 16px;color:var(--muted);font-size:12px;line-height:1.9}
+    .no-sel-icon{font-size:36px;margin-bottom:12px;opacity:.3}
+
+    /* ── A&C ── */
+    .ac-verdict-card{border-radius:10px;padding:16px;margin-top:14px}
+    .ac-verdict-card.ok{background:#e8f5f2;border:1.5px solid var(--brand)}
+    .ac-verdict-card.fail{background:#fdf0ef;border:1.5px solid var(--red)}
+    .ac-verdict{font-weight:800;font-size:15px;letter-spacing:-.2px}
+    .ac-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0 0}
+    .ac-metric{
+      background:var(--bg);border:1px solid var(--border);border-radius:7px;
+      padding:9px 6px;text-align:center;
+    }
+    .ac-metric-val{font-size:16px;font-weight:800;line-height:1}
+    .ac-metric-lbl{font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+    .ac-pf-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px}
+    .ac-pf-cell{
+      background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+      padding:8px;text-align:center;
+    }
+    .ac-pf-val{font-size:13px;font-weight:700}
+    .ac-pf-lbl{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+    .ac-log{
+      background:#f8f9fb;border:1px solid var(--border);border-radius:7px;
+      padding:10px;font-size:10px;color:var(--text2);max-height:140px;overflow-y:auto;
+      line-height:1.9;font-family:monospace;
+    }
+
+    /* ── Map ── */
+    #map{z-index:1}
+    .map-hint{
+      position:absolute;bottom:70px;left:50%;transform:translateX(-50%);
+      background:rgba(255,255,255,.92);border:1px solid var(--brand);border-radius:20px;
+      padding:8px 18px;font-size:11px;font-weight:600;color:var(--lime);z-index:500;
+      pointer-events:none;white-space:nowrap;display:none;letter-spacing:.3px;
+    }
+
+    /* ── Toast ── */
+    .toast{
+      position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--panel);
+      border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;font-weight:600;
+      transform:translateY(80px);opacity:0;transition:all .25s;max-width:300px;
+      box-shadow:0 4px 16px rgba(0,0,0,.12);
+    }
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{border-color:var(--brand);color:var(--brand)}
+    .toast.error{border-color:var(--red);color:var(--red)}
+
+    /* ── Overlay ── */
+    .overlay{
+      position:fixed;inset:0;z-index:9998;background:rgba(255,255,255,.92);
+      display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+    }
+    .spinner{
+      width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--brand);
+      border-radius:50%;animation:spin .7s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .overlay-label{font-size:13px;font-weight:600;color:var(--text)}
+    .overlay-sub{font-size:11px;color:var(--text2)}
+
+    /* ── Grid selector & modal ── */
+    .grid-selector{
+      display:flex;align-items:center;gap:6px;
+      background:var(--panel2);border:1px solid var(--border2);border-radius:6px;
+      padding:4px 10px;cursor:pointer;transition:border-color .15s;
+    }
+    .grid-selector:hover{border-color:var(--brand)}
+    .grid-selector-name{font-size:12px;font-weight:700;color:var(--text);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .grid-selector-arrow{font-size:10px;color:var(--muted)}
+    .modal-overlay{
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,.4);
+      display:none;align-items:center;justify-content:center;
+    }
+    .modal-overlay.open{display:flex}
+    .modal{
+      background:var(--panel);border:1px solid var(--border2);border-radius:12px;
+      padding:24px;width:480px;max-width:95vw;max-height:85vh;overflow-y:auto;
+      box-shadow:0 8px 40px rgba(0,0,0,.2);
+    }
+    .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .modal-title{font-size:16px;font-weight:800;color:var(--text)}
+    .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px}
+    .modal-close:hover{color:var(--text)}
+    .grid-list-item{
+      display:flex;align-items:center;gap:12px;
+      padding:12px 14px;border:1px solid var(--border);border-radius:8px;
+      margin-bottom:8px;cursor:pointer;transition:all .15s;
+    }
+    .grid-list-item:hover{border-color:var(--brand);background:var(--brand-bg)}
+    .grid-list-item.active{border-color:var(--brand);background:var(--brand-bg)}
+    .grid-list-icon{
+      width:36px;height:36px;border-radius:7px;background:var(--brand-bg);
+      display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;
+    }
+    .grid-list-icon.active-icon{background:var(--brand)}
+    .grid-list-info{flex:1;min-width:0}
+    .grid-list-name{font-weight:700;font-size:13px;color:var(--text)}
+    .grid-list-meta{font-size:10px;color:var(--muted);margin-top:2px}
+    .grid-list-actions{display:flex;gap:6px;flex-shrink:0}
+    .badge-voltage{font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700;letter-spacing:.3px}
+    .badge-bt{background:var(--brand-bg);color:var(--brand);border:1px solid #a8d5cc}
+    .badge-mt{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+    .badge-saved{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:9px;padding:2px 7px;border-radius:10px;font-weight:700}
+    .upload-zone{
+      border:2px dashed var(--border2);border-radius:10px;padding:24px;text-align:center;
+      margin-bottom:16px;transition:border-color .15s;cursor:pointer;
+    }
+    .upload-zone:hover{border-color:var(--brand)}
+    .upload-zone-icon{font-size:28px;margin-bottom:8px;opacity:.5}
+    .upload-zone-text{font-size:12px;font-weight:600;color:var(--text2)}
+    .upload-zone-sub{font-size:11px;color:var(--muted);margin-top:4px}
+    .divider{height:1px;background:var(--border);margin:20px 0}
+
+
+    /* ── Navbar ── */
+    .navbar{
+      display:flex;align-items:center;gap:2px;
+      background:var(--panel2);border:1px solid var(--border);
+      border-radius:6px;padding:3px;
+    }
+    .nav-item{
+      padding:5px 14px;border-radius:4px;font-size:11px;font-weight:700;
+      color:var(--text2);cursor:pointer;transition:all .15s;letter-spacing:.3px;
+      text-decoration:none;display:block;
+    }
+    .nav-item:hover{color:var(--text);background:var(--panel)}
+    .nav-item.active{background:var(--brand);color:#fff;}
+    /* ── Save version modal ── */
+    .save-modal{
+      background:var(--panel);border:1px solid var(--border2);border-radius:12px;
+      padding:24px;width:400px;max-width:95vw;
+      box-shadow:0 8px 40px rgba(0,0,0,.2);
+    }
+  </style>
+</head>
+<body>
+<div class="overlay" id="overlay">
+  <div style="text-align:center;max-width:420px;padding:20px">
+    <div style="width:56px;height:56px;border-radius:12px;background:var(--brand);
+      display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;
+      color:#fff;margin:0 auto 16px">G</div>
+    <div style="font-family:Montserrat,sans-serif;font-size:24px;font-weight:800;color:var(--text);margin-bottom:6px">
+      Gridfy
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:28px;font-family:Montserrat,sans-serif">
+      Plataforma de análisis de redes eléctricas
+    </div>
+    <button onclick="openGridModal()" style="
+      background:var(--brand);color:#fff;border:none;border-radius:8px;
+      padding:12px 28px;font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;
+      cursor:pointer;width:100%;margin-bottom:8px;transition:background .15s
+    " onmouseover="this.style.background='#04a386'" onmouseout="this.style.background='var(--brand)'">
+      Seleccionar red existente
+    </button>
+    <a href="/import.html" style="
+      display:block;background:transparent;color:var(--brand);border:1.5px solid var(--brand);
+      border-radius:8px;padding:11px 28px;font-family:Montserrat,sans-serif;font-size:14px;
+      font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;text-align:center;
+      text-decoration:none;box-sizing:border-box;
+    ">
+      + Importar nueva red
+    </a>
+    <div id="overlay-status" style="font-size:11px;color:var(--muted);font-family:Montserrat,sans-serif"></div>
+  </div>
+</div>
+<div class="map-hint" id="mapHint" id="mapHint"></div>
+
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-mark">G</div>
+      <div>
+        <div class="logo-name">Grid<span>fy</span></div>
+      </div>
+    </div>
+    <nav class="navbar">
+      <a class="nav-item active" href="/">Análisis</a>
+      <a class="nav-item" href="/import.html">Importar red</a>
+      <a class="nav-item" href="/settings.html">Configuración</a>
+    </nav>
+    <div class="grid-selector" onclick="openGridModal()">
+      <div class="network-badge-dot" id="selectorDot"></div>
+      <span class="grid-selector-name" id="selectorName">Seleccionar red…</span>
+      <span class="grid-selector-arrow">▾</span>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="status-pill">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-label" id="statusLabel">Sin calcular</span>
+    </div>
+    <button class="btn btn-ghost" id="btnSave" onclick="saveCurrentGrid()" style="display:none">Guardar red</button>
+    <button class="btn btn-primary" id="btnPF" onclick="runPowerFlow()">▶ Power Flow</button>
+    <button class="btn btn-ghost" onclick="resetView()">Resetear vista</button>
+  </header>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="sidebar-tab active" onclick="switchTab('overview')">Red</div>
+      <div class="sidebar-tab" onclick="switchTab('elements')">Escenario</div>
+      <div class="sidebar-tab" onclick="switchTab('element')">Elemento</div>
+      <div class="sidebar-tab" onclick="switchTab('ac')">A&amp;C</div>
+      <div class="sidebar-tab" onclick="switchTab('scenarios'); loadScenarios()">Escenarios</div>
+      <div class="sidebar-tab" onclick="switchTab('hc')">HC Mapa</div>
+    </div>
+
+    <!-- ── Tab: Red ── -->
+    <div class="sidebar-content tab-panel active" id="tab-overview">
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-val" id="s-buses">—</div><div class="stat-label">Buses</div></div>
+        <div class="stat-card"><div class="stat-val" id="s-lines">—</div><div class="stat-label">Líneas</div></div>
+        <div class="stat-card"><div class="stat-val" id="s-loads">—</div><div class="stat-label">Cargas</div></div>
+        <div class="stat-card"><div class="stat-val" id="s-sgens">—</div><div class="stat-label">Generadores</div></div>
+      </div>
+
+      <!-- Network health panel -->
+      <div id="net-health" style="display:none;margin-bottom:12px">
+        <div id="net-health-items" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <!-- Active scenario indicator in overview -->
+      <div id="overview-scenario" style="display:none;background:var(--brand-bg);
+        border:1px solid #a8d5cc;border-radius:8px;padding:9px 12px;margin-bottom:12px;
+        cursor:pointer" onclick="switchTab('scenarios');loadScenarios()">
+        <div style="font-size:9px;font-weight:700;color:var(--brand);text-transform:uppercase;
+          letter-spacing:.5px">Escenario activo</div>
+        <div id="overview-scenario-name" style="font-weight:700;font-size:12px;
+          color:var(--text);margin-top:2px"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">
+          Click para gestionar escenarios</div>
+      </div>
+
+      <!-- ext_grid vm_pu quick control -->
+      <div id="overview-extgrid" style="display:none;background:var(--panel2);
+        border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:12px">
+        <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;
+          letter-spacing:.5px;margin-bottom:6px">Tensión cabecera (ext_grid)</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input class="form-input" id="overview-vm-pu" type="number" step="0.01"
+            min="0.9" max="1.1" style="width:90px;font-size:12px;font-weight:700"/>
+          <span style="font-size:11px;color:var(--muted)">p.u.</span>
+          <button class="btn btn-ghost btn-sm" onclick="saveExtGridFromOverview()">Guardar</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">
+          Rango típico BT: 1.00 – 1.05 p.u.
+        </div>
+      </div>
+
+      <div class="section-title">Tensión en nodos (p.u.)</div>
+      <div class="legend-block">
+        <div class="legend-row"><div class="legend-dot" style="background:#037A68"></div>0.95 – 1.05 — Normal (±5%)</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#f0c93a"></div>0.93 – 0.95 / 1.05 – 1.07 — Aviso (±5–7%)</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#e05454"></div>&lt; 0.93 ó &gt; 1.07 — Fuera de límite</div>
+        <div class="legend-row"><div class="legend-dot" style="background:#3d3360"></div>Sin datos</div>
+      </div>
+
+      <div class="section-title">Cargabilidad de líneas</div>
+      <div class="legend-block">
+        <div class="legend-row"><div class="legend-line" style="background:#037A68"></div>&lt; 80% — Normal</div>
+        <div class="legend-row"><div class="legend-line" style="background:#f0c93a"></div>80 – 100% — Aviso</div>
+        <div class="legend-row"><div class="legend-line" style="background:#e05454"></div>≥ 100% — Sobrecarga</div>
+      </div>
+
+      <div class="section-title">Elementos en mapa</div>
+      <div class="legend-block">
+        <div class="legend-row"><div class="legend-sq" style="background:#e07a35"></div>Carga (demanda)</div>
+        <div class="legend-row"><div class="legend-sq" style="background:#7c5cbf"></div>Generación distribuida</div>
+        <div class="legend-row"><div class="legend-sq" style="background:#CEFF1A"></div>Punto A&amp;C analizado</div>
+        <div class="legend-row"><div class="legend-line" style="background:#f97316;border-top:2px dashed #f97316"></div>Línea de bucle (normalmente abierta)</div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Escenario ── -->
+    <div class="sidebar-content tab-panel" id="tab-elements">
+
+      <div class="section-title">Añadir elemento</div>
+      <div class="form-card">
+        <div class="form-row">
+          <label class="form-label" for="new-type">Tipo de elemento</label>
+          <select class="form-select" id="new-type">
+            <option value="load">Carga (demanda)</option>
+            <option value="sgen">Generación distribuida</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="new-bus">Bus de conexión</label>
+          <select class="form-select" id="new-bus"></select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="new-name">Identificador</label>
+          <input class="form-input" id="new-name" type="text" placeholder="ES0123456789012345XX"/>
+        </div>
+        <div class="form-row-2">
+          <div>
+            <label class="form-label" for="new-p">P activa (MW)</label>
+            <input class="form-input" id="new-p" type="number" step="0.001" value="0.01"/>
+          </div>
+          <div>
+            <label class="form-label" for="new-q">Q reactiva (MVAR)</label>
+            <input class="form-input" id="new-q" type="number" step="0.001" value="0"/>
+          </div>
+        </div>
+        <div class="form-btns">
+          <button class="btn btn-brand" onclick="crearElemento()">Añadir a la red</button>
+        </div>
+      </div>
+
+      <div class="section-title">Cargas activas</div>
+      <div id="loads-list"><div style="color:var(--muted);font-size:11px;padding:6px 0">Sin cargas en el escenario</div></div>
+
+      <div class="section-title" style="margin-top:14px">Generadores activos</div>
+      <div id="sgens-list"><div style="color:var(--muted);font-size:11px;padding:6px 0">Sin generadores en el escenario</div></div>
+    </div>
+
+    <!-- ── Tab: Elemento ── -->
+    <div class="sidebar-content tab-panel" id="tab-element">
+      <div id="elementPanel">
+        <div class="no-sel">
+          <div class="no-sel-icon">⚡</div>
+          Selecciona un elemento<br>del mapa para ver<br>sus parámetros
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: A&C ── -->
+    <div class="sidebar-content tab-panel" id="tab-ac">
+
+      <div class="section-title">Configurar análisis</div>
+      <div class="form-card">
+        <!-- Supply location picker -->
+        <div class="form-row">
+          <label class="form-label">Ubicación del suministro</label>
+          <button class="btn btn-ghost" id="ac-pick-supply-btn" onclick="togglePickMode('supply')"
+            style="width:100%;text-align:left;font-size:11px;padding:7px 10px">
+            📍 Pinchar en el mapa para marcar la ubicación
+          </button>
+          <div id="ac-supply-info" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+        <!-- Connection bus picker -->
+        <div class="form-row">
+          <label class="form-label">Nodo de conexión</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="ac-bus-search" type="text"
+              placeholder="Buscar bus por nombre..."
+              oninput="filterACBus(this.value)" autocomplete="off"
+              style="flex:1;font-size:11px"/>
+            <button class="btn btn-ghost" style="padding:6px 10px;flex-shrink:0"
+              onclick="togglePickMode('bus')" id="ac-pick-bus-btn" title="Seleccionar nodo en mapa">🎯</button>
+          </div>
+          <div id="ac-bus-dropdown" style="background:var(--panel);border:1px solid var(--border2);
+            border-radius:6px;max-height:160px;overflow-y:auto;display:none;
+            box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:2px"></div>
+          <!-- Hidden select keeps the actual value -->
+          <select id="ac-bus" style="display:none"></select>
+          <div id="ac-bus-info" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="ac-name">Nombre del estudio</label>
+          <input class="form-input" id="ac-name" type="text" placeholder="Ej: Estudio vivienda calle Mayor 12"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="ac-type">Tipo de conexión</label>
+          <select class="form-select" id="ac-type">
+            <option value="false">Demanda (carga)</option>
+            <option value="true">Generación distribuida</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="ac-preq">Potencia solicitada (kW)</label>
+          <input class="form-input" id="ac-preq" type="number" value="100" min="1" max="9999"/>
+        </div>
+        <div class="form-btns">
+          <button class="btn btn-primary" id="ac-btn" onclick="runAC()">▶ Ejecutar A&amp;C</button>
+        </div>
+      </div>
+
+      <div id="ac-progress" style="display:none;margin-bottom:12px">
+        <div class="section-title">Progreso del cálculo</div>
+        <div class="ac-log" id="ac-log"></div>
+      </div>
+
+      <div id="ac-result"></div>
+      <div id="ac-history" style="margin-top:14px"></div>
+    </div>
+
+
+    <!-- ── Tab: Escenarios ── -->
+    <div class="sidebar-content tab-panel" id="tab-scenarios">
+      <div class="section-title">Escenarios activos</div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:12px;font-size:11px;text-align:left;padding:8px 12px" onclick="downloadScenarioTemplate()">&#11015; Descargar plantilla de escenario (CUPS vacios)</button>
+      <div id="active-scenario-banner" style="display:none;background:var(--brand-bg);
+        border:1px solid #a8d5cc;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.5px">Escenario activo</div>
+        <div id="active-scenario-name" style="font-weight:700;font-size:12px;color:var(--text);margin-top:2px"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-ghost" style="flex:1;font-size:10px" onclick="downloadCurrentScenario()">Descargar Excel</button>
+          <button class="btn btn-danger" style="flex:1;font-size:10px" onclick="resetScenario()">Restablecer 0 MW</button>
+        </div>
+      </div>
+      <div id="scenarios-list"></div>
+      <div class="section-title" style="margin-top:14px">Subir escenario</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="upload-zone" style="padding:12px" onclick="document.getElementById('scenarioFileInput').click()">
+            <div style="font-size:11px;font-weight:600;color:var(--text2)" id="scenarioFileName">Seleccionar Excel</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Hojas: Cargas / Generacion · columnas: CUPS, P(kW), Q(kVAR)</div>
+          </div>
+          <input type="file" id="scenarioFileInput" accept=".xlsx,.xls" style="display:none"
+            onchange="document.getElementById('scenarioFileName').textContent=this.files[0]?.name||'Seleccionar'"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="scenarioName">Nombre</label>
+          <input class="form-input" id="scenarioName" type="text" placeholder="Verano punta 2025"/>
+        </div>
+        <div class="form-btns">
+          <button class="btn btn-brand" onclick="uploadScenario()">Subir escenario</button>
+        </div>
+        <div id="scenarioStatus" style="font-size:11px;margin-top:8px;color:var(--muted);text-align:center"></div>
+      </div>
+    </div>
+
+    <!-- ── Tab: HC Mapa ── -->
+    <div class="sidebar-content tab-panel" id="tab-hc">
+      <div class="section-title">Hosting Capacity — Red completa</div>
+      <div class="form-card">
+        <div class="form-row">
+          <label class="form-label" for="hc-mode">Tipo</label>
+          <select class="form-select" id="hc-mode">
+            <option value="demand">Demanda (carga)</option>
+            <option value="generation">Generación distribuida</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="hc-view">Visualización</label>
+          <select class="form-select" id="hc-view" onchange="document.getElementById('hc-threshold-row').style.display=this.value==='threshold'?'':'none'">
+            <option value="capacity">Color por HC máximo (kW)</option>
+            <option value="threshold">Admisibilidad para potencia fija</option>
+          </select>
+        </div>
+        <div class="form-row" id="hc-threshold-row" style="display:none">
+          <label class="form-label" for="hc-threshold">Potencia a evaluar (kW)</label>
+          <input class="form-input" id="hc-threshold" type="number" value="50" min="1"/>
+        </div>
+        <div class="form-btns">
+          <button class="btn btn-primary" id="hc-btn" onclick="runHCMap()">▶ Calcular HC</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">
+          Calcula el HC de cada nodo BT. Puede tardar varios minutos según el tamaño de la red.
+        </div>
+      </div>
+      <div id="hc-bus-search" style="display:none;margin-bottom:12px">
+        <div class="section-title">Buscar bus en resultados</div>
+        <div style="display:flex;gap:6px">
+          <input class="form-input" id="hc-search-input" type="text"
+            placeholder="Nombre del bus..." oninput="filterHCBus(this.value)"
+            style="flex:1;font-size:11px"/>
+          <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px"
+            onclick="document.getElementById('hc-search-input').value='';document.getElementById('hc-search-results').innerHTML=''">✕</button>
+        </div>
+        <div id="hc-search-results" style="max-height:180px;overflow-y:auto;margin-top:6px"></div>
+      </div>
+      <div id="hc-progress" style="display:none;margin-bottom:12px">
+        <div class="section-title">Progreso</div>
+        <div class="ac-log" id="hc-log"></div>
+      </div>
+      <div id="hc-legend" style="display:none">
+        <div class="section-title">Leyenda</div>
+        <div id="hc-legend-content"></div>
+        <button class="btn btn-brand" style="width:100%;margin-top:8px;font-size:11px" onclick="downloadHCResults()">Descargar resultados Excel</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:6px;font-size:11px" onclick="clearHCLayer()">Limpiar capa HC</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="map" style="position:relative"></div>
+</div>
+<!-- ── Modal gestión de redes ── -->
+<div class="modal-overlay" id="gridModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Gestión de redes</span>
+      <button class="modal-close" onclick="closeGridModal()">✕</button>
+    </div>
+
+    <!-- Voltage tabs -->
+    <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px">
+      <div id="tab-bt" onclick="switchVoltageTab('BT')"
+        style="flex:1;padding:9px 0;text-align:center;font-size:11px;font-weight:700;
+               letter-spacing:.5px;cursor:pointer;transition:all .15s;
+               background:var(--brand);color:#fff;border-right:1px solid var(--border)">
+        BT — Baja Tensión
+      </div>
+      <div id="tab-mt" onclick="switchVoltageTab('MT')"
+        style="flex:1;padding:9px 0;text-align:center;font-size:11px;font-weight:700;
+               letter-spacing:.5px;cursor:pointer;transition:all .15s;
+               background:var(--panel2);color:var(--muted);position:relative">
+        MT — Media Tensión
+        <span style="position:absolute;top:4px;right:8px;font-size:8px;
+          background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;font-weight:700">
+          Próximamente
+        </span>
+      </div>
+    </div>
+
+    <!-- BT panel -->
+    <div id="panel-BT">
+      <div style="margin-bottom:10px">
+        <input class="form-input" id="gridSearch" type="text"
+          placeholder="Buscar red por nombre o descripción…"
+          oninput="filterGridList(this.value)"
+          style="width:100%;font-size:12px"/>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px;
+                  text-transform:uppercase;letter-spacing:.5px" id="gridListCount"></div>
+      <div id="gridModalList" style="max-height:280px;overflow-y:auto"></div>
+
+      <div class="divider"></div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Subir nueva red BT</div>
+      <div class="upload-zone" onclick="document.getElementById('uploadFileInput').click()">
+        <div class="upload-zone-icon">📂</div>
+        <div class="upload-zone-text" id="uploadFileName">Haz click para seleccionar un Excel</div>
+        <div class="upload-zone-sub">Hojas requeridas: Terminal, Lineas, Transformadores, Loads_Data, ExternalGrid</div>
+      </div>
+      <input type="file" id="uploadFileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileSelected(this)"/>
+
+      <div class="form-card" style="margin-bottom:14px">
+        <div class="form-row">
+          <label class="form-label" for="uploadName">Nombre de la red</label>
+          <input class="form-input" id="uploadName" type="text" placeholder="Mi red BT — Zona Norte"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="uploadDesc">Descripción</label>
+          <input class="form-input" id="uploadDesc" type="text" placeholder="Subestación, municipio, fecha…"/>
+        </div>
+        <input type="hidden" id="uploadVoltage" value="BT"/>
+      </div>
+      <button class="btn btn-brand" id="uploadBtn" onclick="uploadGrid()" style="width:100%">Subir y cargar red BT</button>
+      <div id="uploadStatus" style="font-size:11px;margin-top:10px;color:var(--muted);text-align:center"></div>
+    </div>
+
+      <div class="divider" style="margin:16px 0"></div>
+
+      <!-- GIS Import -->
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Importar desde GIS</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+        Importa directamente desde los CSVs del GIS (Tramo_baja, Transformador, Punto_D-C).
+        El sistema convierte automaticamente al formato Gridfy.
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <label class="form-label">Tramo_baja.csv <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="file" id="gis-tramos" accept=".csv" style="font-size:11px"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Transformador.csv <span style="color:var(--red)">*</span></label>
+          <input class="form-input" type="file" id="gis-trafo" accept=".csv" style="font-size:11px"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Punto_D-C.csv <span style="color:var(--muted)">(opcional)</span></label>
+          <input class="form-input" type="file" id="gis-loads" accept=".csv" style="font-size:11px"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="gis-name">Nombre de la red</label>
+          <input class="form-input" id="gis-name" type="text" placeholder="Ej: CT28 Deposito Agua"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="gis-desc">Descripcion</label>
+          <input class="form-input" id="gis-desc" type="text" placeholder="Opcional"/>
+        </div>
+        <div class="form-btns" style="gap:6px">
+          <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="previewGIS()">Vista previa Excel</button>
+          <button class="btn btn-brand" style="flex:1;font-size:11px" onclick="importGIS()">Importar GIS</button>
+        </div>
+        <div id="gisStatus" style="font-size:11px;margin-top:8px;color:var(--muted);text-align:center"></div>
+      </div>
+
+    <!-- MT panel -->
+    <div id="panel-MT" style="display:none">
+      <div style="
+        background:#fef9ec;border:1.5px solid #fcd34d;border-radius:10px;
+        padding:20px;text-align:center;
+      ">
+        <div style="font-size:28px;margin-bottom:10px;opacity:.6">🔧</div>
+        <div style="font-weight:700;font-size:14px;color:#92400e;margin-bottom:6px">
+          Soporte MT en desarrollo
+        </div>
+        <div style="font-size:12px;color:#a16207;line-height:1.6">
+          Las redes de Media Tensión requieren un formato de Excel diferente<br>
+          y algoritmos específicos. Estará disponible próximamente.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Early stubs (available before full script loads) ─────────────────────────
+function openGridModal() {
+  loadGrids();
+  document.getElementById('gridModal').classList.add('open');
+}
+function closeGridModal() {
+  document.getElementById('gridModal').classList.remove('open');
+}
+const API = '';
+let networkData = null, pfResults = null, lastACResult = null;
+let map, busLayer, lineLayer, trafoLayer, loadLayer, sgenLayer, acLayer;
+
+map = L.map('map', {zoomControl:false, maxZoom:25});
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'© Esri © DigitalGlobe', maxZoom:25, maxNativeZoom:19}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
+  {attribution:'', maxZoom:25, opacity:0.7}).addTo(map);
+busLayer   = L.layerGroup().addTo(map);
+lineLayer  = L.layerGroup().addTo(map);
+trafoLayer = L.layerGroup().addTo(map);
+loadLayer  = L.layerGroup().addTo(map);
+sgenLayer  = L.layerGroup().addTo(map);
+acLayer    = L.layerGroup().addTo(map);
+
+const busColor  = v => v===null?'#94a3b8':v>=0.95&&v<=1.05?'#037A68':v>=0.93&&v<=1.07?'#f59e0b':'#e05454';
+const lineColor = v => v===null?'#94a3b8':v<80?'#04d4b0':v<100?'#f59e0b':'#e05454';
+const fmt = (v,d=3) => v!==null&&v!==undefined ? Number(v).toFixed(d) : '—';
+const deg2rad = d => d*Math.PI/180;
+
+function haversine(la1,lo1,la2,lo2){
+  const R=6371000,dLa=deg2rad(la2-la1),dLo=deg2rad(lo2-lo1);
+  const a=Math.sin(dLa/2)**2+Math.cos(deg2rad(la1))*Math.cos(deg2rad(la2))*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function nearestBus(lat,lon){
+  let best=null,bd=Infinity;
+  for(const b of networkData.buses){
+    if(!b.lat||!b.lon)continue;
+    const d=haversine(lat,lon,b.lat,b.lon);
+    if(d<bd){bd=d;best=b;}
+  }
+  return{bus:best,dist:bd};
+}
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show '+type;
+  setTimeout(()=>t.className='toast',3000);
+}
+function switchTab(name){
+  const tabs=['overview','elements','element','ac','scenarios','hc'];
+  document.querySelectorAll('.sidebar-tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===name));
+  document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  // Hide map hint when switching tabs (pick mode managed by togglePickMode)
+}
+function resetView(){
+  if(!networkData)return;
+  const pts=networkData.buses.filter(b=>b.lat&&b.lon).map(b=>[b.lat,b.lon]);
+  if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[30,30]});
+}
+
+
+
+// ── AC pick mode: 'supply' | 'bus' | null ────────────────────────────────────
+let acPickMode  = null;   // which thing we are picking
+let acHistory   = [];      // history of AC studies
+let acClickLat  = null;
+let acClickLon  = null;
+let acBusLat    = null;
+let acSupplyLat = null;  // punto de suministro (marcador amarillo)
+let acSupplyLon = null;
+let acBusLon    = null;
+
+function togglePickMode(mode) {
+  if (acPickMode === mode) {
+    // deactivate
+    acPickMode = null;
+    document.getElementById('mapHint').style.display = 'none';
+    map.getContainer().style.cursor = '';
+    resetPickBtns();
+    return;
+  }
+  acPickMode = mode;
+  const hint = document.getElementById('mapHint');
+  hint.textContent = mode === 'supply'
+    ? 'Haz click para marcar la ubicación del suministro'
+    : 'Haz click sobre el nodo de conexión deseado';
+  hint.style.display = 'block';
+  map.getContainer().style.cursor = 'crosshair';
+  // highlight active button
+  resetPickBtns();
+  const btn = document.getElementById(mode === 'supply' ? 'ac-pick-supply-btn' : 'ac-pick-bus-btn');
+  if (btn) { btn.style.borderColor = 'var(--brand)'; btn.style.color = 'var(--brand)'; }
+}
+
+function resetPickBtns() {
+  ['ac-pick-supply-btn','ac-pick-bus-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.style.borderColor = ''; b.style.color = ''; }
+  });
+}
+
+map.on('click', function(e) {
+  if (!acPickMode || !networkData) return;
+
+  if (acPickMode === 'supply') {
+    acClickLat  = e.latlng.lat;
+    acClickLon  = e.latlng.lng;
+    acSupplyLat = acClickLat;
+    acSupplyLon = acClickLon;
+
+    // Place supply marker immediately on the map
+    if (window._supplyMarker) map.removeLayer(window._supplyMarker);
+    window._supplyMarker = L.marker([acClickLat, acClickLon], {
+      icon: L.divIcon({
+        html: '<div style="background:#f59e0b;width:18px;height:18px;border-radius:50%;'+
+              'border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:pointer"></div>',
+        iconSize:[18,18], iconAnchor:[9,9],
+      }),
+      draggable: true,  // allow repositioning by drag
+    }).addTo(map)
+      .bindTooltip('📍 Punto de suministro<br><i>Arrastra para mover</i>', {className:'tt-gridfy'});
+
+    // Update position if marker is dragged
+    window._supplyMarker.on('dragend', function(ev) {
+      const ll = ev.target.getLatLng();
+      acClickLat = ll.lat; acClickLon = ll.lng;
+      acSupplyLat = ll.lat; acSupplyLon = ll.lng;
+      document.getElementById('ac-supply-info').innerHTML =
+        '📍 '+ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+' (arrastra para mover)';
+      // Re-suggest nearest bus after drag
+      const {bus: b2, dist: d2} = nearestBus(ll.lat, ll.lng);
+      if (b2) {
+        const searchInp = document.getElementById('ac-bus-search');
+        const sel       = document.getElementById('ac-bus');
+        if (searchInp) searchInp.value = b2.name;
+        for (const opt of (sel?.options||[])) {
+          if (opt.value === b2.name) { sel.value = b2.name; break; }
+        }
+        acBusLat = b2.lat; acBusLon = b2.lon;
+        document.getElementById('ac-bus-info').textContent =
+          '🔌 Nodo más cercano: '+b2.name.split('_').slice(-2).join(' ')+
+          ' ('+d2.toFixed(0)+' m)';
+        drawACPreview();
+      }
+    });
+
+    // Auto-suggest nearest bus and select it
+    const {bus, dist} = nearestBus(acClickLat, acClickLon);
+    document.getElementById('ac-supply-info').innerHTML =
+      '📍 '+acClickLat.toFixed(5)+', '+acClickLon.toFixed(5)+' (arrastra para mover)';
+    document.getElementById('ac-pick-supply-btn').textContent = '📍 Ubicación marcada — click para cambiar';
+
+    // Auto-select the nearest bus in the search input and hidden select
+    if (bus) {
+      const searchInp = document.getElementById('ac-bus-search');
+      const sel       = document.getElementById('ac-bus');
+      if (searchInp) searchInp.value = bus.name;
+      for (const opt of (sel?.options||[])) {
+        if (opt.value === bus.name) { sel.value = bus.name; break; }
+      }
+      acBusLat = bus.lat; acBusLon = bus.lon;
+      document.getElementById('ac-bus-info').textContent =
+        '🔌 Nodo más cercano: '+bus.name.split('_').slice(-2).join(' ')+
+        ' ('+dist.toFixed(0)+' m)';
+      document.getElementById('ac-bus-dropdown').style.display = 'none';
+      drawACPreview();
+    }
+    // Auto-select nearest bus if not yet chosen
+    if (bus) {
+      const sel = document.getElementById('ac-bus');
+      for (const opt of sel.options) if (opt.value === bus.name) { sel.value = bus.name; break; }
+      acBusLat = bus.lat; acBusLon = bus.lon;
+      document.getElementById('ac-bus-info').textContent = 'Sugerido por cercania: '+bus.name+' ('+dist.toFixed(0)+' m)';
+    }
+  } else if (acPickMode === 'bus') {
+    // User clicked directly on a bus
+    const {bus, dist} = nearestBus(e.latlng.lat, e.latlng.lng);
+    if (!bus) return;
+    acBusLat = bus.lat; acBusLon = bus.lon;
+    const sel = document.getElementById('ac-bus');
+    for (const opt of sel.options) if (opt.value === bus.name) { sel.value = bus.name; break; }
+    const searchInp = document.getElementById('ac-bus-search');
+    if (searchInp) searchInp.value = bus.name;
+    document.getElementById('ac-bus-info').textContent = 'Nodo seleccionado: '+bus.name+' ('+dist.toFixed(0)+' m del click)';
+  }
+
+  // Deactivate pick mode
+  acPickMode = null;
+  document.getElementById('mapHint').style.display = 'none';
+  map.getContainer().style.cursor = '';
+  resetPickBtns();
+  drawACPreview();
+});
+
+// Redraw when dropdown changes manually
+document.addEventListener('DOMContentLoaded', () => {
+  const busEl = document.getElementById('ac-bus');
+  if (busEl) busEl.addEventListener('change', () => {
+    const bus = networkData && networkData.buses.find(b => b.name === busEl.value);
+    if (bus) { acBusLat = bus.lat; acBusLon = bus.lon; }
+    drawACPreview();
+  });
+});
+
+function drawACPreview() {
+  acLayer.clearLayers();
+  if (window._supplyMarker) { map.removeLayer(window._supplyMarker); window._supplyMarker = null; }
+  const hasBus = acBusLat !== null;
+  const hasSupply = acClickLat !== null;
+
+  if (hasSupply) {
+    // Supply point — yellow star marker
+    L.circleMarker([acClickLat, acClickLon],
+      {radius:8, fillColor:'#f59e0b', color:'#fff', weight:2.5, fillOpacity:1})
+      .bindTooltip('<b>Nuevo suministro</b><br>'+acClickLat.toFixed(5)+', '+acClickLon.toFixed(5), {className:'tt-gridfy'})
+      .addTo(acLayer);
+  }
+
+  if (hasSupply && hasBus) {
+    // Connection line
+    L.polyline([[acClickLat, acClickLon],[acBusLat, acBusLon]],
+      {color:'#037A68', weight:2, dashArray:'6 4', opacity:.8})
+      .addTo(acLayer);
+  }
+
+  if (hasBus) {
+    // Connection bus — green ring + dot
+    L.circleMarker([acBusLat, acBusLon],
+      {radius:12, fillColor:'transparent', color:'#037A68', weight:2.5, fillOpacity:0})
+      .addTo(acLayer);
+    L.circleMarker([acBusLat, acBusLon],
+      {radius:6, fillColor:'#037A68', color:'#fff', weight:2, fillOpacity:1})
+      .bindTooltip('<b>Nodo de conexion</b>', {className:'tt-gridfy'})
+      .addTo(acLayer);
+  }
+}
+
+async function loadNetwork(){
+  const res=await fetch(API+'/api/network');
+  networkData=await res.json();
+  document.getElementById('s-buses').textContent=networkData.buses.length;
+  document.getElementById('s-lines').textContent=networkData.lines.length;
+  // Render network health panel
+  renderNetHealth(networkData);
+
+  // Show ext_grid vm_pu control in overview
+  try {
+    const egRes = await fetch(API+'/api/extgrid');
+    if (egRes.ok) {
+      const eg = await egRes.json();
+      if (eg.length > 0) {
+        document.getElementById('overview-extgrid').style.display='';
+        document.getElementById('overview-vm-pu').value = eg[0].vm_pu || 1.0;
+      }
+    }
+  } catch(e) {}
+  // Store loop lines for map rendering
+  window._loopLines = new Set(networkData.loop_lines || []);
+  if (window._loopLines.size > 0) {
+    showToast(window._loopLines.size + ' bucles detectados en la red — se muestran en naranja', 'success');
+  }
+  document.getElementById('s-loads').textContent=networkData.loads.length;
+  document.getElementById('s-sgens').textContent=networkData.sgens.length;
+  await loadBusDropdown();
+  renderNetwork();renderLists();resetView();
+  document.getElementById('overlay').style.display='none';
+}
+
+async function loadBusDropdown(){
+  const res=await fetch(API+'/api/buses');
+  const buses=await res.json();
+  document.getElementById('new-bus').innerHTML=buses.map(b=>'<option value="'+b.id+'">'+b.name+' ('+b.vn_kv+'kV)</option>').join('');
+  document.getElementById('ac-bus').innerHTML=buses.map(b=>'<option value="'+b.name+'">'+b.name+' ('+b.vn_kv+'kV)</option>').join('');
+  // Store buses for AC search
+  window._acBusList = buses;
+}
+
+function renderNetwork(){
+  busLayer.clearLayers();lineLayer.clearLayers();
+  trafoLayer.clearLayers();loadLayer.clearLayers();sgenLayer.clearLayers();
+  const busRes={},lineRes={};
+  if(pfResults){
+    pfResults.buses.forEach(b=>busRes[b.id]=b);
+    pfResults.lines.forEach(l=>lineRes[l.id]=l);
+  }
+  networkData.lines.forEach(line=>{
+    if(!line.from_lat||!line.to_lat)return;
+    const res=lineRes[line.id]||{};
+    const isLoop = window._loopLines && window._loopLines.has(line.id);
+    const isOpen = line.in_service === false;
+    let color, weight, dashArray, opacity;
+    if (isOpen) {
+      // Opened line — grey dashed
+      color='#6b7280'; weight=1.5; dashArray='4 4'; opacity=.5;
+    } else if (isLoop) {
+      // Loop line — always orange dashed regardless of PF state
+      color='#f97316'; weight=3; dashArray='8 4'; opacity:.9;
+    } else {
+      color=lineColor(res.loading_percent??null); weight=2.5; dashArray=null; opacity=.9;
+    }
+    const pl=L.polyline([[line.from_lat,line.from_lon],[line.to_lat,line.to_lon]],
+      {color, weight, dashArray, opacity});
+    pl.on('click',()=>selectElement('line',line.id,res));
+    const loopBadge = (window._loopLines && window._loopLines.has(line.id)) ? ' 🔄 BUCLE' : '';
+    const openBadge = line.in_service === false ? ' [ABIERTA]' : '';
+    pl.bindTooltip('<b>'+line.name+'</b>'+loopBadge+openBadge+'<br>'+fmt(line.length_km,3)+' km | '+fmt(res.loading_percent??null,1)+'%',{className:'tt-gridfy'});
+    pl.addTo(lineLayer);
+  });
+  networkData.buses.forEach(bus=>{
+    if(!bus.lat||!bus.lon)return;
+    const res=busRes[bus.id]||{};
+    const color=busColor(res.vm_pu??null);
+    const r=bus.vn_kv>=1?10:5;
+    const c=L.circleMarker([bus.lat,bus.lon],{radius:r,fillColor:color,color:'#ffffff',weight:1.5,fillOpacity:.95});
+    c.on('click',()=>selectElement('bus',bus.id,res));
+    c.bindTooltip('<b>'+bus.name+'</b><br>'+bus.vn_kv+'kV'+(res.vm_pu!=null?'<br>'+fmt(res.vm_pu,4)+' p.u.':''),{className:'tt-gridfy'});
+    c.addTo(busLayer);
+  });
+  networkData.trafos.forEach(t=>{
+    if(!t.lv_lat)return;
+    const m=L.circleMarker([t.lv_lat,t.lv_lon],{radius:10,fillColor:'#f59e0b',color:'#ffffff',weight:2,fillOpacity:1});
+    m.on('click',()=>selectTrafo(t.id));
+    m.bindTooltip('<b>Trafo: '+t.name+'</b><br>'+(t.sn_mva*1000).toFixed(0)+' kVA',{className:'tt-gridfy'});
+    m.addTo(trafoLayer);
+  });
+  networkData.loads.forEach(l=>{
+    if(!l.lat||!l.lon)return;
+    const m=L.circleMarker([l.lat,l.lon],{radius:6,fillColor:'#f97316',color:'#ffffff',weight:1.5,fillOpacity:.95});
+    m.on('click',()=>selectElement('load',l.id,{}));
+    m.bindTooltip('<b>Carga: '+l.name+'</b><br>P='+fmt(l.p_mw,4)+' MW',{className:'tt-gridfy'});
+    m.addTo(loadLayer);
+  });
+  networkData.sgens.forEach(s=>{
+    if(!s.lat||!s.lon)return;
+    const m=L.circleMarker([s.lat,s.lon],{radius:6,fillColor:'#8b5cf6',color:'#ffffff',weight:1.5,fillOpacity:.95});
+    m.on('click',()=>selectElement('sgen',s.id,{}));
+    m.bindTooltip('<b>Generador: '+s.name+'</b><br>P='+fmt(s.p_mw,4)+' MW',{className:'tt-gridfy'});
+    m.addTo(sgenLayer);
+  });
+}
+
+function renderACOnMap(r){
+  acLayer.clearLayers();
+  const bus=networkData.buses.find(b=>b.id===r.bus_id);
+  if(!bus||!bus.lat)return;
+  const color=r.admissible?'#037A68':'#e05454';
+  // Show supply point marker (where user clicked 📍)
+  if (acClickLat && acClickLon) {
+    L.circleMarker([acClickLat, acClickLon], {
+      radius:10, fillColor:'#f59e0b', color:'#fff', weight:2.5, fillOpacity:1
+    }).bindTooltip('📍 Punto de suministro', {className:'tt-gridfy'}).addTo(acLayer);
+    // Line from supply point to connection bus
+    L.polyline([[acClickLat, acClickLon],[bus.lat, bus.lon]],
+      {color:'#f59e0b', weight:1.5, dashArray:'4 4', opacity:.7}).addTo(acLayer);
+  }
+  // Bus marker (connection point)
+  L.circleMarker([bus.lat,bus.lon],{radius:16,fillColor:color,color:'transparent',weight:0,fillOpacity:.15}).addTo(acLayer);
+  L.circleMarker([bus.lat,bus.lon],{radius:8,fillColor:color,color:'#130E1E',weight:2,fillOpacity:1})
+    .bindPopup(
+      '<div style="font-family:Montserrat,sans-serif;font-size:11px;min-width:190px;color:#111827">'+
+      '<div style="font-weight:800;font-size:13px;color:'+color+';margin-bottom:6px">'+(r.admissible?'ADMISIBLE':'NO ADMISIBLE')+'</div>'+
+      '<div><b>Bus:</b> '+r.terminal+'</div>'+
+      '<div><b>Tipo:</b> '+r.type+'</div>'+
+      '<div><b>Solicitada:</b> '+r.p_requested_kw+' kW</div>'+
+      '<div><b>Hosting máx.:</b> <span style="color:'+color+';font-weight:800">'+r.hosting_max_kw+' kW</span></div>'+
+      (r.limits_violated.length?'<div style="color:#e05454;margin-top:4px">'+r.limits_violated[0]+'</div>':'')+
+      '</div>',{className:'popup-gridfy'}).openPopup().addTo(acLayer);
+  map.panTo([bus.lat,bus.lon]);
+}
+
+function renderLists(){
+  document.getElementById('s-loads').textContent=networkData.loads.length;
+  document.getElementById('s-sgens').textContent=networkData.sgens.length;
+  document.getElementById('loads-list').innerHTML=networkData.loads.length
+    ?networkData.loads.map(l=>
+      '<div class="list-item" onclick="selectElement(\'load\','+l.id+',{})">'+
+      '<div class="list-item-info"><div class="list-item-name">'+l.name+'</div>'+
+      '<div class="list-item-sub">Bus '+l.bus+' &nbsp;·&nbsp; P='+(l.p_mw!==null?(l.p_mw*1000).toFixed(1)+' kW':'—')+'</div></div>'+
+      '<span class="badge badge-load">CARGA</span>'+
+      '<button class="btn btn-danger" onclick="event.stopPropagation();deleteElement(\'load\','+l.id+')">✕</button>'+
+      '</div>').join('')
+    :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Sin cargas en el escenario</div>';
+  document.getElementById('sgens-list').innerHTML=networkData.sgens.length
+    ?networkData.sgens.map(s=>
+      '<div class="list-item" onclick="selectElement(\'sgen\','+s.id+',{})">'+
+      '<div class="list-item-info"><div class="list-item-name">'+s.name+'</div>'+
+      '<div class="list-item-sub">Bus '+s.bus+' &nbsp;·&nbsp; P='+(s.p_mw!==null?(s.p_mw*1000).toFixed(1)+' kW':'—')+'</div></div>'+
+      '<span class="badge badge-gen">GEN</span>'+
+      '<button class="btn btn-danger" onclick="event.stopPropagation();deleteElement(\'sgen\','+s.id+')">✕</button>'+
+      '</div>').join('')
+    :'<div style="color:var(--muted);font-size:11px;padding:6px 0">Sin generadores en el escenario</div>';
+}
+
+async function selectElement(type,id,resData){
+  switchTab('element');
+  const res=await fetch(API+'/api/element/'+type+'/'+id);
+  const params=await res.json();
+  const typeLabel={bus:'Nodo',line:'Línea',trafo:'Transformador',load:'Carga',sgen:'Generador'}[type]||type;
+  const name=params.name||typeLabel+' #'+id;
+  let kpiHtml='';
+  if(type==='bus'&&resData.vm_pu!==undefined){
+    const color=busColor(resData.vm_pu);
+    kpiHtml='<div class="el-kpi-row">'+
+      '<div class="el-kpi"><div class="el-kpi-val" style="color:'+color+'">'+fmt(resData.vm_pu,4)+'</div><div class="el-kpi-unit">p.u. tensión</div></div>'+
+      '<div class="el-kpi"><div class="el-kpi-val">'+fmt(resData.va_degree,2)+'</div><div class="el-kpi-unit">° ángulo</div></div>'+
+      '</div>';
+  }else if(type==='line'&&resData.loading_percent!==undefined){
+    const color=lineColor(resData.loading_percent);
+    kpiHtml='<div class="el-kpi-row">'+
+      '<div class="el-kpi"><div class="el-kpi-val" style="color:'+color+'">'+fmt(resData.loading_percent,1)+'</div><div class="el-kpi-unit">% cargabilidad</div></div>'+
+      '<div class="el-kpi"><div class="el-kpi-val">'+fmt(resData.i_ka,4)+'</div><div class="el-kpi-unit">kA corriente</div></div>'+
+      '</div>';
+  }
+  const editableParams={
+    bus:['vn_kv'],line:['length_km','r_ohm_per_km','x_ohm_per_km','max_i_ka'],
+    trafo:['sn_mva','vk_percent','vkr_percent','tap_pos'],load:['p_mw','q_mvar'],sgen:['p_mw','q_mvar'],ext_grid:['vm_pu']
+  };
+  const editable=editableParams[type]||[];
+  let paramsHtml='<div class="section-title" style="margin-top:14px;margin-bottom:10px">Parámetros editables</div>';
+  editable.forEach(p=>{
+    const v=params[p]!==null&&params[p]!==undefined?params[p]:'';
+    paramsHtml+='<div class="param-row"><span class="param-label" title="'+p+'">'+p+'</span>'+
+      '<input class="param-input" id="param-'+p+'" type="number" step="any" value="'+v+'"/></div>';
+  });
+  const canDelete=type==='load'||type==='sgen';
+  document.getElementById('elementPanel').innerHTML=
+    '<div class="el-header">'+name+'</div>'+
+    '<div class="el-type">'+typeLabel+' · ID '+id+'</div>'+
+    kpiHtml+paramsHtml+
+    '<button class="btn btn-brand" style="width:100%;margin-top:12px" onclick="saveParams(\''+type+'\','+id+','+JSON.stringify(editable).replace(/"/g,'&quot;')+')">Guardar cambios</button>'+
+    (canDelete?'<button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="deleteElement(\''+type+'\','+id+')">Eliminar elemento</button>':'');
+}
+
+async function saveParams(type,id,fields){
+  let changed=0;
+  for(const p of fields){
+    const el=document.getElementById('param-'+p);
+    if(!el)continue;const val=parseFloat(el.value);if(isNaN(val))continue;
+    await fetch(API+'/api/element/'+type+'/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({param:p,value:val})});
+    changed++;
+  }
+  showToast(changed+' parámetro(s) guardado(s)','success');
+  await loadNetwork();
+}
+
+async function deleteElement(type,id){
+  if(!confirm('¿Eliminar '+type+' #'+id+'?'))return;
+  const res=await fetch(API+'/api/element/'+type+'/'+id,{method:'DELETE'});
+  if(res.ok){showToast('Elemento eliminado','success');await loadNetwork();
+    document.getElementById('elementPanel').innerHTML='<div class="no-sel"><div class="no-sel-icon">🗑</div>Elemento eliminado</div>';}
+  else showToast('Error al eliminar','error');
+}
+
+async function crearElemento(){
+  const type=document.getElementById('new-type').value;
+  const bus=parseInt(document.getElementById('new-bus').value);
+  const name=document.getElementById('new-name').value||type+'_nuevo';
+  const p_mw=parseFloat(document.getElementById('new-p').value)||0;
+  const q_mvar=parseFloat(document.getElementById('new-q').value)||0;
+  const res=await fetch(API+'/api/create/'+type,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({bus,name,p_mw,q_mvar})});
+  if(res.ok){showToast(type+' añadido a la red','success');await loadNetwork();}
+  else{const err=await res.json();showToast('Error: '+err.detail,'error');}
+}
+
+async function runPowerFlow(){
+  const btn=document.getElementById('btnPF');
+  btn.disabled=true;btn.textContent='Calculando…';
+  try{
+    const res=await fetch(API+'/api/powerflow',{method:'POST'});
+    if(!res.ok){
+      const err=await res.json();showToast('Error: '+err.detail,'error');
+      document.getElementById('statusDot').className='status-dot err';
+      document.getElementById('statusLabel').textContent='No convergió';return;
+    }
+    pfResults=await res.json();
+    const vms=pfResults.buses.map(b=>b.vm_pu).filter(v=>v!==null);
+    const minV=Math.min(...vms).toFixed(4);
+    const maxLoad=Math.max(...pfResults.lines.map(l=>l.loading_percent||0)).toFixed(1);
+    document.getElementById('statusDot').className='status-dot ok';
+    document.getElementById('statusLabel').textContent='V_min='+minV+' | Carga_max='+maxLoad+'%';
+    renderNetwork();showToast('Power Flow convergido','success');
+  }catch(e){showToast('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='▶ Power Flow';}
+}
+
+async function runAC(){
+  const btn=document.getElementById('ac-btn');
+  const logEl=document.getElementById('ac-log');
+  const progressEl=document.getElementById('ac-progress');
+  const resultEl=document.getElementById('ac-result');
+
+  // Get terminal name — search input has the full bus name
+  const terminalName = (document.getElementById('ac-bus-search')?.value?.trim()) ||
+                       (document.getElementById('ac-bus')?.value) || '';
+  if (!terminalName) {
+    showToast('Selecciona un bus de conexión','error'); return;
+  }
+
+  const studyName = document.getElementById('ac-name')?.value?.trim() ||
+                    ('A&C ' + terminalName.split('_').slice(-1)[0]);
+  const isGen = document.getElementById('ac-type')?.value === 'true';
+  const pReq  = parseInt(document.getElementById('ac-preq')?.value) || 100;
+
+  btn.disabled=true; btn.textContent='Calculando…';
+  progressEl.style.display='block'; resultEl.innerHTML=''; logEl.innerHTML='';
+  acLayer.clearLayers();
+
+  function addLog(msg){logEl.innerHTML+=msg+'<br>';logEl.scrollTop=logEl.scrollHeight;}
+  try{
+    if(!terminalName){showToast('Bus vacío — selecciona un bus','error');btn.disabled=false;btn.textContent='▶ Ejecutar A&C';return;}
+    const res=await fetch(API+'/api/ac/run',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        terminal_name:  terminalName,
+        is_generation:  isGen,
+        p_requested_kw: pReq,
+        supply_lat:     acSupplyLat||null,
+        supply_lon:     acSupplyLon||null,
+      })});
+    if(!res.ok){
+      const err=await res.json();
+      showToast('Error: '+(err.detail||'422 — bus no encontrado'),'error');
+      return;
+    }
+    const reader=res.body.getReader();const decoder=new TextDecoder();let buffer='';
+    while(true){
+      const{done,value}=await reader.read();if(done)break;
+      buffer+=decoder.decode(value,{stream:true});
+      const parts=buffer.split('\n');buffer=parts.pop();
+      for(const line of parts){
+        if(!line.startsWith('data: '))continue;
+        const msg=line.slice(6).trim();if(msg==='done')break;
+        if(msg.startsWith('error: ')){showToast('Error: '+msg.slice(7),'error');break;}
+        if(msg.startsWith('progress: '))addLog(msg.slice(10));
+        else if(msg.startsWith('result: ')){
+          lastACResult=JSON.parse(msg.slice(8));
+          lastACResult._studyName=studyName;
+          renderACResult(lastACResult);
+          // Place result marker at connection bus
+          const bus=networkData?.buses.find(b=>b.id===lastACResult.bus_id);
+          if(bus&&bus.lat){
+            const color=lastACResult.admissible?'var(--brand)':'#e05454';
+            if(acClickLat&&acClickLon){
+              L.polyline([[acClickLat,acClickLon],[bus.lat,bus.lon]],
+                {color:'#f59e0b',weight:1.5,dashArray:'4 4',opacity:.8}).addTo(acLayer);
+            }
+            L.circleMarker([bus.lat,bus.lon],{radius:16,fillColor:color,color:'transparent',weight:0,fillOpacity:.15}).addTo(acLayer);
+            L.circleMarker([bus.lat,bus.lon],{radius:8,fillColor:color,color:'#130E1E',weight:2,fillOpacity:1})
+              .bindPopup(
+                '<div style="font-family:Montserrat,sans-serif;font-size:11px;min-width:190px;color:#111827">'+
+                '<div style="font-weight:800;font-size:13px;color:'+color+';margin-bottom:6px">'+(lastACResult.admissible?'ADMISIBLE':'NO ADMISIBLE')+'</div>'+
+                '<div><b>Bus:</b> '+lastACResult.terminal+'</div>'+
+                '<div><b>Tipo:</b> '+lastACResult.type+'</div>'+
+                '<div><b>Solicitada:</b> '+lastACResult.p_requested_kw+' kW</div>'+
+                '<div><b>Hosting máx.:</b> <span style="color:'+color+';font-weight:800">'+lastACResult.hosting_max_kw+' kW</span></div>'+
+                (lastACResult.limits_violated?.length?'<div style="color:#e05454;margin-top:4px">'+lastACResult.limits_violated[0]+'</div>':'')+
+                '</div>',{className:'popup-gridfy'}).openPopup().addTo(acLayer);
+            map.panTo([bus.lat,bus.lon]);
+          }
+          // Save to history
+          const ts=new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+          acHistory.push({...lastACResult,ts});
+          renderACHistory();
+        }
+      }
+    }
+  }catch(e){showToast('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='▶ Ejecutar A&C';}
+}
+
+
+function renderACResult(r){
+  const resultEl=document.getElementById('ac-result');
+  const ok=r.admissible;
+  const color=ok?'var(--brand)':'#e05454';
+  const borderColor=ok?'var(--brand)':'#e05454';
+  let pfHtml='';
+  if(r.pf_results&&r.pf_results.converged){
+    const vms=r.pf_results.buses.map(b=>b.vm_pu).filter(v=>v!==null);
+    const loads=r.pf_results.lines.map(l=>l.loading_percent).filter(v=>v!==null);
+    const vMin=vms.length?Math.min(...vms).toFixed(4):'—';
+    const vMax=vms.length?Math.max(...vms).toFixed(4):'—';
+    const lMax=loads.length?Math.max(...loads).toFixed(1):'—';
+    pfHtml='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">'+
+      '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Estado red con '+r.p_requested_kw+' kW conectados</div>'+
+      '<div class="ac-pf-row">'+
+      '<div class="ac-pf-cell"><div class="ac-pf-val">'+vMin+'</div><div class="ac-pf-lbl">V_min p.u.</div></div>'+
+      '<div class="ac-pf-cell"><div class="ac-pf-val">'+vMax+'</div><div class="ac-pf-lbl">V_max p.u.</div></div>'+
+      '<div class="ac-pf-cell"><div class="ac-pf-val">'+lMax+'%</div><div class="ac-pf-lbl">Carga máx.</div></div>'+
+      '</div></div>';
+  }
+  resultEl.innerHTML = buildACResultHTML(r, pfHtml);
+}
+
+function buildACResultHTML(r, pfHtml) {
+  const ok = r.admissible;
+  const color = ok ? 'var(--brand)' : '#e05454';
+  const ac = r.acometida || null;
+  const dist = r.dist_m ? r.dist_m+' m' : null;
+
+  let acHtml = '';
+  if (ac) {
+    const vd = ac.vdrop_percent != null ? ac.vdrop_percent : null;
+    const vdColor = vd==null?'var(--muted)':vd>5?'#e05454':vd>3?'#f59e0b':'var(--brand)';
+    acHtml =
+      '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">'+
+      '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;'+
+        'letter-spacing:.5px;margin-bottom:8px">📐 Acometida recomendada</div>'+
+      '<div style="background:var(--brand-bg);border:1px solid #a8d5cc;border-radius:8px;'+
+        'padding:10px 12px;margin-bottom:8px">'+
+        '<div style="font-size:13px;font-weight:800;color:var(--brand);margin-bottom:4px">'+ac.conductor+'</div>'+
+        '<div style="font-size:11px;color:var(--text2)">'+
+          'I demanda: <b>'+ac.i_demand_a+' A</b> · I_max cable: '+ac.i_max_a+' A · Sección: '+ac.section_mm2+' mm²'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">'+
+        '<div style="background:var(--panel2);border-radius:6px;padding:8px;text-align:center">'+
+          '<div style="font-weight:700">'+(dist||'—')+'</div>'+
+          '<div style="color:var(--muted);font-size:10px">Distancia estimada</div>'+
+        '</div>'+
+        '<div style="background:var(--panel2);border-radius:6px;padding:8px;text-align:center">'+
+          '<div style="font-weight:700;color:'+vdColor+'">'+(vd!=null?vd+'%':'—')+'</div>'+
+          '<div style="color:var(--muted);font-size:10px">Caída de tensión</div>'+
+        '</div>'+
+      '</div>'+
+      (!dist?'<div style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center">'+
+        'Marca el 📍 punto de suministro para calcular la distancia</div>':'')+
+      '</div>';
+  }
+
+  return (
+    '<div class="ac-verdict-card '+(ok?'ok':'fail')+'">'+
+    '<div class="ac-verdict" style="color:'+color+'">'+(ok?'ADMISIBLE':'NO ADMISIBLE')+'</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-top:3px;font-weight:600">'+r.terminal+'</div>'+
+    '<div style="font-size:10px;color:var(--muted)">'+r.voltage_level+' · '+r.type+'</div>'+
+    '<div class="ac-metrics">'+
+      '<div class="ac-metric"><div class="ac-metric-val">'+r.p_requested_kw+'</div><div class="ac-metric-lbl">Solicitada kW</div></div>'+
+      '<div class="ac-metric"><div class="ac-metric-val" style="color:'+color+'">'+r.hosting_max_kw+'</div><div class="ac-metric-lbl">Hosting máx. kW</div></div>'+
+      '<div class="ac-metric"><div class="ac-metric-val" style="color:'+color+'">'+r.remaining_kw+'</div><div class="ac-metric-lbl">Restante kW</div></div>'+
+    '</div>'+pfHtml+acHtml+
+    '<div style="margin-top:12px;display:flex;gap:8px">'+
+      '<button class="btn btn-brand" onclick="downloadReport()" style="flex:1;font-size:12px">Descargar PDF</button>'+
+      (ok?'<button class="btn btn-primary" onclick="addACToNetwork()" style="flex:1;font-size:12px">+ Añadir a red</button>':'')+
+    '</div></div>'
+  );
+}
+
+
+async function downloadReport(){
+  if(!lastACResult)return;
+  const res=await fetch(API+'/api/ac/report',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({result:lastACResult})});
+  if(!res.ok){showToast('Error generando PDF','error');return;}
+  const blob=await res.blob();const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='AC_'+lastACResult.terminal.replace(/ /g,'_')+'.pdf';
+  a.click();URL.revokeObjectURL(url);
+}
+
+document.head.insertAdjacentHTML('beforeend','<style>'+
+  '.tt-gridfy{background:rgba(17,24,39,.92);border:1px solid rgba(255,255,255,.15);color:#f9fafb;'+
+  'font-family:Montserrat,sans-serif;font-size:11px;font-weight:500;padding:7px 11px;'+
+  'border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.5)}'+
+  '.tt-gridfy::before{display:none}'+
+  '.leaflet-popup-content-wrapper{background:#ffffff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15)}'+
+  '.leaflet-popup-content{color:#111827;margin:10px 14px;font-family:Montserrat,sans-serif}'+
+  '.leaflet-popup-tip{background:#ffffff}'+
+  '.leaflet-popup-close-button{color:#9ca3af!important}'+
+  '</style>');
+
+
+// ── Grid management ───────────────────────────────────────────────────────────
+let gridsData = [];
+let activeVoltageTab = 'BT';
+
+function switchVoltageTab(voltage) {
+  activeVoltageTab = voltage;
+  const isBT = voltage === 'BT';
+  document.getElementById('panel-BT').style.display = isBT ? '' : 'none';
+  document.getElementById('panel-MT').style.display = isBT ? 'none' : '';
+  document.getElementById('tab-bt').style.background = isBT ? 'var(--brand)' : 'var(--panel2)';
+  document.getElementById('tab-bt').style.color = isBT ? '#fff' : 'var(--muted)';
+  document.getElementById('tab-mt').style.background = isBT ? 'var(--panel2)' : 'var(--brand)';
+  document.getElementById('tab-mt').style.color = isBT ? 'var(--muted)' : '#fff';
+  const search = document.getElementById('gridSearch');
+  if (search) search.value = '';
+  renderGridList();
+}
+
+async function loadGrids() {
+  try {
+    const res = await fetch(API+'/api/grids');
+    gridsData = await res.json();
+    renderGridList();
+    const active = gridsData.find(g => g.active);
+    if (active) {
+      document.getElementById('selectorName').textContent = active.name;
+      document.getElementById('selectorDot').style.background = 'var(--brand)';
+      document.getElementById('btnSave').style.display = '';
+    }
+    // Update overlay status with available networks count
+    const st = document.getElementById('overlay-status');
+    if (st) {
+      const btCount = gridsData.filter(g => g.voltage==='BT').length;
+      st.textContent = btCount > 0
+        ? btCount + ' red' + (btCount>1?'es':'') + ' BT disponible' + (btCount>1?'s':'')
+        : 'Sin redes registradas — sube la primera';
+    }
+
+  } catch(e) { console.error('loadGrids:', e); }
+}
+
+function filterGridList(query) {
+  const q = query.toLowerCase().trim();
+  const filtered = gridsData
+    .filter(g => g.voltage === activeVoltageTab)
+    .filter(g => !q || g.name.toLowerCase().includes(q) ||
+                 (g.description||'').toLowerCase().includes(q));
+  renderFilteredList(filtered);
+}
+
+function renderGridList() {
+  const filtered = gridsData.filter(g => g.voltage === activeVoltageTab);
+  renderFilteredList(filtered);
+}
+
+function renderFilteredList(filtered) {
+  const el = document.getElementById('gridModalList');
+  const countEl = document.getElementById('gridListCount');
+  if (!el) return;
+  if (countEl) countEl.textContent = filtered.length + ' red' + (filtered.length!==1?'es':'') + ' ' + activeVoltageTab;
+  if (!filtered.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:24px 0">Sin resultados</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(g =>
+    '<div class="grid-list-item '+(g.active?'active':'')+'" onclick="selectGridVersion('+g.id+', \''+g.name+'\', '+g.has_saved+')">'+
+    '<div class="grid-list-icon '+(g.active?'active-icon':'')+'">'+(g.active?'↯':'○')+'</div>'+
+    '<div class="grid-list-info">'+
+      '<div class="grid-list-name">'+g.name+'</div>'+
+      '<div class="grid-list-meta">'+(g.description||'Sin descripcion')+' &nbsp;·&nbsp; '+(g.created_at?g.created_at.slice(0,10):'')+'</div>'+
+    '</div>'+
+    '<div class="grid-list-actions" style="display:flex;gap:4px;align-items:center">'+
+      '<span class="badge-voltage '+(g.voltage==='BT'?'badge-bt':'badge-mt')+'">'+g.voltage+'</span>'+
+      (g.has_saved?'<span class="badge-saved">Guardada</span>':'')+
+    '</div>'+
+    '<button class="btn btn-danger" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();deleteGrid('+g.id+',\''+g.name+'\')">✕</button>'+
+    '</div>'
+  ).join('');
+}
+
+// openGridModal and closeGridModal defined at top of script
+
+async function loadGrid(id, fromOriginal) {
+  const loadingEl = document.getElementById('gridModalList');
+  if (loadingEl) loadingEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:12px">Cargando red…</div>';
+
+  const res = await fetch(API+'/api/grids/'+id+'/load', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({from_original: fromOriginal === true})
+  });
+  if (!res.ok) { showToast('Error cargando la red','error'); renderGridList(); return; }
+  const data = await res.json();
+
+  const versionLabel = fromOriginal ? ' [Original]' : (data.source !== 'original (Excel)' ? ' [Ultima version]' : '');
+  document.getElementById('selectorName').textContent = data.name + versionLabel;
+  document.getElementById('selectorDot').style.background = 'var(--brand)';
+  document.getElementById('btnSave').style.display = '';
+
+  const overlay = document.getElementById('overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  closeGridModal();
+  pfResults = null;
+  await loadNetwork();
+  showToast('Red cargada: '+data.name+' ('+data.source+')','success');
+}
+
+function saveCurrentGrid() {
+  const active = gridsData.find(g => g.active);
+  if (!active) return;
+  // Pre-fill with a default name
+  const now = new Date();
+  document.getElementById('saveVersionName').value =
+    active.name + ' — ' + now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('saveVersionDesc').value = '';
+  document.getElementById('saveStatus').textContent = '';
+  document.getElementById('saveModal').classList.add('open');
+}
+
+async function confirmSaveGrid() {
+  const active = gridsData.find(g => g.active);
+  if (!active) return;
+  const versionName = document.getElementById('saveVersionName').value.trim();
+  const statusEl = document.getElementById('saveStatus');
+  if (!versionName) { statusEl.textContent = 'Introduce un nombre para la versión'; return; }
+
+  statusEl.textContent = 'Guardando…';
+  const res = await fetch(API+'/api/grids/'+active.id+'/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({version_name: versionName})
+  });
+  if (res.ok) {
+    const data = await res.json();
+    document.getElementById('saveModal').classList.remove('open');
+    showToast('Version guardada: '+versionName,'success');
+    await loadGrids();
+  } else {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Error al guardar';
+  }
+}
+
+async function deleteGrid(id, name) {
+  if (!confirm('Eliminar la red "'+name+'"?')) return;
+  const res = await fetch(API+'/api/grids/'+id, {method:'DELETE'});
+  if (res.ok) {
+    showToast('Red eliminada: '+name,'success'); await loadGrids();
+    if (!gridsData.find(g => g.active)) {
+      document.getElementById('selectorName').textContent = 'Seleccionar red...';
+      document.getElementById('selectorDot').style.background = 'var(--muted)';
+      document.getElementById('btnSave').style.display = 'none';
+    }
+  } else showToast('Error al eliminar','error');
+}
+
+function onFileSelected(input) {
+  if (input.files[0]) document.getElementById('uploadFileName').textContent = input.files[0].name;
+}
+
+async function uploadGrid() {
+  const fi = document.getElementById('uploadFileInput');
+  const name = document.getElementById('uploadName').value.trim();
+  const desc = document.getElementById('uploadDesc').value.trim();
+  const voltage = document.getElementById('uploadVoltage').value;
+  const statusEl = document.getElementById('uploadStatus');
+  const btn = document.getElementById('uploadBtn');
+  if (!fi.files[0]) { statusEl.textContent='Selecciona un Excel'; return; }
+  if (!name) { statusEl.textContent='Introduce un nombre'; return; }
+  const fd = new FormData();
+  fd.append('file', fi.files[0]); fd.append('name', name);
+  fd.append('description', desc); fd.append('voltage', voltage);
+  btn.disabled=true; btn.textContent='Subiendo...';
+  statusEl.style.color='var(--muted)'; statusEl.textContent='Procesando...';
+  try {
+    const res = await fetch(API+'/api/grids/upload', {method:'POST', body:fd});
+    const data = await res.json();
+    if (!res.ok) {
+      statusEl.style.color='var(--red)';
+      if (data.detail && data.detail.log) {
+        statusEl.innerHTML='<b>Error ('+data.detail.stage+'):</b><br>'+data.detail.log.join('<br>');
+      } else {
+        statusEl.textContent='Error: '+(data.detail||'desconocido');
+      }
+    } else {
+      statusEl.style.color='var(--brand)';
+      statusEl.textContent='Cargada: '+data.buses+' buses, '+data.lines+' lineas';
+      document.getElementById('selectorName').textContent=data.name;
+      document.getElementById('selectorDot').style.background='var(--brand)';
+      document.getElementById('btnSave').style.display='';
+      pfResults=null; await loadNetwork(); await loadGrids();
+      fi.value=''; document.getElementById('uploadFileName').textContent='Haz click para seleccionar un Excel';
+      document.getElementById('uploadName').value=''; document.getElementById('uploadDesc').value='';
+      setTimeout(closeGridModal, 1500);
+    }
+  } catch(e) { statusEl.style.color='var(--red)'; statusEl.textContent='Error: '+e.message; }
+  finally { btn.disabled=false; btn.textContent='Subir y cargar red BT'; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const m = document.getElementById('gridModal');
+  if (m) m.addEventListener('click', e => { if (e.target===m) closeGridModal(); });
+});
+
+// On boot: load grid list and show welcome screen
+// Network only loads when user selects one
+loadGrids().catch(e => console.error('Boot error:', e));
+
+// Check if a network is already active (e.g. after page refresh)
+fetch(API+'/api/grids/current').then(r=>r.json()).then(data => {
+  if (data.loaded) {
+    document.getElementById('selectorName').textContent = data.name;
+    document.getElementById('selectorDot').style.background = 'var(--brand)';
+    document.getElementById('btnSave').style.display = '';
+    document.getElementById('overlay').style.display = 'none';
+    loadNetwork();
+  }
+}).catch(e => console.error('Active grid check:', e));
+
+// ── Add A&C result to network ─────────────────────────────────────────────────
+async function addACToNetwork() {
+  if (!lastACResult || !lastACResult.admissible) return;
+  const r   = lastACResult;
+  const ac  = r.acometida || {};
+  const isGen = r.type === 'generación';
+
+  // Build modal
+  const modalHtml =
+    '<div id="acometida-modal" style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.5);'+
+      'display:flex;align-items:center;justify-content:center">'+
+    '<div style="background:var(--panel);border:1px solid var(--border2);border-radius:12px;'+
+      'padding:24px;width:380px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.3);font-family:Montserrat,sans-serif">'+
+      '<div style="font-size:15px;font-weight:800;margin-bottom:16px">Añadir a la red</div>'+
+      '<div style="margin-bottom:10px">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nombre</div>'+
+        '<input id="ac-new-name" class="form-input" value="'+(isGen?'GEN_':'CARGA_')+r.bus_id+'" style="width:100%"/>'+
+      '</div>'+
+      '<div style="margin-bottom:10px">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Potencia (kW) — máx. admisible: '+r.hosting_max_kw+' kW</div>'+
+        '<input id="ac-new-pkw" class="form-input" type="number" step="0.1" value="'+r.p_requested_kw+'" style="width:100%"/>'+
+      '</div>'+
+      '<div style="margin-bottom:10px">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Conductor de acometida</div>'+
+        '<input id="ac-new-cond" class="form-input" value="'+(ac.conductor||'MANGUERA CU(4X6)')+'" style="width:100%"/>'+
+      '</div>'+
+      '<div style="margin-bottom:16px">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Longitud acometida (m)</div>'+
+        '<input id="ac-new-dist" class="form-input" type="number" value="'+(r.dist_m||10)+'" style="width:100%"/>'+
+      '</div>'+
+      '<div style="background:var(--brand-bg);border:1px solid #a8d5cc;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:11px">'+
+        (acSupplyLat?
+          '📍 Bus nuevo en punto de suministro marcado en el mapa<br>🔌 Conectado a bus #'+r.bus_id+' con la acometida':
+          '⚠ Marca el 📍 punto de suministro en el mapa para crear el bus en la ubicación correcta'
+        )+
+      '</div>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button onclick="document.getElementById(\'acometida-modal\').remove()" '+
+          'style="flex:1;padding:9px;border-radius:6px;border:1.5px solid var(--border2);'+
+          'background:transparent;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:700">Cancelar</button>'+
+        '<button id="ac-confirm-btn" '+
+          'style="flex:1;padding:9px;border-radius:6px;border:none;background:var(--brand);'+
+          'color:#fff;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:700">Crear en red</button>'+
+      '</div>'+
+    '</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  document.getElementById('ac-confirm-btn').onclick = async () => {
+    const name   = document.getElementById('ac-new-name').value.trim();
+    const p_kw   = parseFloat(document.getElementById('ac-new-pkw').value);
+    const cond   = document.getElementById('ac-new-cond').value.trim();
+    const dist_m = parseFloat(document.getElementById('ac-new-dist').value) || 10;
+    if (!name) { showToast('Introduce un nombre','error'); return; }
+    if (isNaN(p_kw)||p_kw<=0) { showToast('Potencia no válida','error'); return; }
+    if (p_kw > r.hosting_max_kw) { showToast('Supera el hosting máximo','error'); return; }
+
+    document.getElementById('ac-confirm-btn').textContent = 'Creando…';
+    document.getElementById('ac-confirm-btn').disabled = true;
+
+    const res = await fetch(API+'/api/create/acometida', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name, p_mw: p_kw/1000, q_mvar: 0,
+        is_gen: isGen,
+        connect_bus: r.bus_id,
+        conductor: cond,
+        dist_m,
+        supply_lat: acSupplyLat || null,
+        supply_lon: acSupplyLon || null,
+      })
+    });
+    const data = await res.json();
+    document.getElementById('acometida-modal').remove();
+    if (!res.ok) {
+      showToast('Error: '+(data.detail||'desconocido'),'error');
+      return;
+    }
+    showToast('✓ Bus + acometida + '+data.el_type+' creados en la red','success');
+    pfResults = null;
+    // Save current map view before reloading
+    const _center = map.getCenter();
+    const _zoom   = map.getZoom();
+    await loadNetwork();
+    // Restore view (loadNetwork calls resetView which would zoom out)
+    map.setView(_center, _zoom);
+    document.getElementById('statusDot').className='status-dot';
+    document.getElementById('statusLabel').textContent='Recalcula el Power Flow';
+  };
+}
+
+
+// ── Version & grid selection ──────────────────────────────────────────────────
+function selectGridVersion(id, name, hasSaved) {
+  if (!hasSaved) { loadGrid(id, false); return; }
+  const el = document.getElementById('gridModalList');
+  el.innerHTML =
+    '<div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px">' +
+    '<div style="font-weight:700;font-size:12px;margin-bottom:12px;color:var(--text);display:flex;justify-content:space-between;align-items:center">' +
+      '<span>Cargar: ' + name + '</span>' +
+      '<button class="btn btn-ghost" style="font-size:10px;padding:2px 8px" onclick="renderGridList()">&#8592; Volver</button>' +
+    '</div>' +
+    '<div class="list-item" onclick="loadGrid(' + id + ', false)" style="margin-bottom:6px">' +
+      '<div class="list-item-info"><div class="list-item-name">&#218;ltima versi&#243;n guardada</div>' +
+      '<div class="list-item-sub">Incluye todas las modificaciones guardadas</div></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--brand)">CARGAR</span>' +
+    '</div>' +
+    '<div class="list-item" onclick="loadGrid(' + id + ', true)" style="margin-bottom:6px">' +
+      '<div class="list-item-info"><div class="list-item-name">Red original (Excel)</div>' +
+      '<div class="list-item-sub">Estado inicial sin modificaciones</div></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--muted)">ORIGINAL</span>' +
+    '</div>' +
+    '<div class="list-item" onclick="openVersions(' + id + ', \'' + name + '\')">' +
+      '<div class="list-item-info"><div class="list-item-name">Ver todas las versiones</div>' +
+      '<div class="list-item-sub">Elige una versi&#243;n espec&#237;fica guardada</div></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--text2)">VER &#8594;</span>' +
+    '</div></div>';
+}
+
+async function openVersions(id, name) {
+  const res = await fetch(API + '/api/grids/' + id + '/versions');
+  const versions = await res.json();
+  const el = document.getElementById('gridModalList');
+  el.innerHTML =
+    '<div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">' +
+    '<div style="font-weight:700;font-size:12px;margin-bottom:10px;color:var(--text);display:flex;justify-content:space-between">' +
+      'Versiones de: ' + name +
+      '<button class="btn btn-ghost" style="font-size:10px;padding:2px 8px" onclick="selectGridVersion(' + id + ', \'' + name + '\', true)">&#8592; Volver</button>' +
+    '</div>' +
+    '<div class="list-item" onclick="loadGrid(' + id + ', true)" style="border-color:var(--brand);margin-bottom:8px">' +
+      '<div class="list-item-info"><div class="list-item-name">Red original (Excel)</div>' +
+      '<div class="list-item-sub">Estado inicial sin modificaciones</div></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--brand)">ORIGINAL</span>' +
+    '</div>' +
+    (versions.length ? versions.map(v =>
+      '<div class="list-item" onclick="loadVersion(' + id + ', \'' + v.file + '\')">' +
+        '<div class="list-item-info"><div class="list-item-name">' + v.name + '</div>' +
+        '<div class="list-item-sub">' + v.saved_at.replace('T',' ').slice(0,16) + '</div></div>' +
+        '<span style="font-size:10px;font-weight:600;color:var(--text2)">Cargar</span>' +
+      '</div>'
+    ).join('') : '<div style="color:var(--muted);font-size:11px;padding:8px">Sin versiones guardadas a&#250;n</div>') +
+    '</div>';
+}
+
+async function loadVersion(id, file) {
+  const res = await fetch(API + '/api/grids/' + id + '/load-version', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({file})
+  });
+  if (!res.ok) { showToast('Error cargando la versi&#243;n','error'); return; }
+  const data = await res.json();
+  const grid = gridsData.find(g => g.id === id);
+  document.getElementById('selectorName').textContent = (grid ? grid.name : '') + ' — ' + data.version.replace('.p','').replace(/_/g,' ');
+  document.getElementById('selectorDot').style.background = 'var(--brand)';
+  document.getElementById('btnSave').style.display = '';
+  document.getElementById('overlay').style.display = 'none';
+  closeGridModal(); pfResults = null;
+  await loadNetwork();
+  showToast('Versi&#243;n cargada: ' + data.version.replace('.p',''), 'success');
+}
+
+// ── Scenarios ─────────────────────────────────────────────────────────────────
+let activeScenarioId = null;
+
+async function loadScenarios() {
+  const active = gridsData.find(g => g.active);
+  if (!active) return;
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios');
+  const scenarios = await res.json();
+  const el = document.getElementById('scenarios-list');
+  const banner = document.getElementById('active-scenario-banner');
+  const activeSc = scenarios.find(s => s.is_active);
+
+  if (activeSc) {
+    banner.style.display = 'block';
+    document.getElementById('active-scenario-name').textContent = activeSc.name;
+    activeScenarioId = activeSc.id;
+  } else {
+    banner.style.display = 'none';
+    activeScenarioId = null;
+  }
+
+  if (!scenarios.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:6px 0">Sin escenarios para esta red</div>';
+    return;
+  }
+  el.innerHTML = scenarios.map(s =>
+    '<div class="list-item '+(s.is_active?'active':'')+'" style="'+(s.is_active?'border-color:var(--brand)':'')+'">'+
+    '<div class="list-item-info">'+
+      '<div class="list-item-name">'+s.name+'</div>'+
+      '<div class="list-item-sub">'+(s.description||'')+'</div>'+
+    '</div>'+
+    '<button class="btn btn-brand" style="padding:4px 10px;font-size:10px;flex-shrink:0" '+
+      'onclick="applyScenario('+s.id+')">'+(s.is_active?'Activo':'Aplicar')+'</button>'+
+    '<button class="btn btn-danger" style="padding:4px 8px;font-size:10px" '+
+      'onclick="deleteScenario('+s.id+')">✕</button>'+
+    '</div>'
+  ).join('');
+}
+
+async function applyScenario(id) {
+  const active = gridsData.find(g => g.active);
+  if (!active) { showToast('Carga una red primero','error'); return; }
+
+  // Ensure network is loaded in backend before applying scenario
+  if (!networkData) {
+    showToast('Cargando red…','');
+    await loadNetwork();
+  }
+
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios/'+id+'/apply', {method:'POST'});
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    showToast('Error: '+(err.detail||'aplicando escenario'),'error');
+    return;
+  }
+  const data = await res.json();
+  // Reload network to reflect new P/Q values on map
+  pfResults = null;
+  await loadNetwork();
+  document.getElementById('statusDot').className = 'status-dot';
+  document.getElementById('statusLabel').textContent = 'Recalcula el Power Flow';
+  showToast('Escenario aplicado: '+data.updated_loads+' cargas, '+data.updated_sgens+' sgens actualizados','success');
+  updateOverviewScenario();
+  if (data.not_found && data.not_found.length) console.warn('No encontrados:', data.not_found);
+  await loadScenarios();
+  pfResults = null; // invalidate previous PF
+}
+
+async function resetScenario() {
+  const active = gridsData.find(g => g.active);
+  if (!active) return;
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios/reset', {method:'POST'});
+  if (res.ok) { showToast('Escenario restablecido a 0 MW','success'); await loadScenarios(); pfResults = null; }
+}
+
+async function deleteScenario(id) {
+  const active = gridsData.find(g => g.active);
+  if (!active || !confirm('¿Eliminar este escenario?')) return;
+  await fetch(API+'/api/networks/'+active.id+'/scenarios/'+id, {method:'DELETE'});
+  await loadScenarios();
+}
+
+async function uploadScenario() {
+  const fi = document.getElementById('scenarioFileInput');
+  const name = document.getElementById('scenarioName').value.trim();
+  const descEl = document.getElementById('scenarioDesc'); const desc = descEl ? descEl.value.trim() : '';
+  const statusEl = document.getElementById('scenarioStatus');
+
+  // Find active grid — refresh gridsData if needed
+  let active = gridsData.find(g => g.active);
+  if (!active && networkData) {
+    // Try to find by matching loaded network
+    await loadGrids();
+    active = gridsData.find(g => g.active);
+  }
+  if (!active) { statusEl.textContent = 'Carga una red primero'; return; }
+  if (!fi.files[0]) { statusEl.textContent = 'Selecciona un archivo Excel'; return; }
+  if (!name) { statusEl.textContent = 'Introduce un nombre'; return; }
+
+  const fd = new FormData();
+  fd.append('file', fi.files[0]); fd.append('name', name); fd.append('description', desc);
+  statusEl.style.color = 'var(--muted)'; statusEl.textContent = 'Subiendo...';
+
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios/upload', {method:'POST', body:fd});
+  let data = {};
+  try { data = await res.json(); } catch(e) { data = {detail: 'Error del servidor ('+res.status+')'}; }
+  if (!res.ok) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Error: '+(data.detail?.errors?.join(', ')||data.detail||'desconocido');
+  } else {
+    statusEl.style.color = 'var(--brand)';
+    statusEl.textContent = 'Escenario subido correctamente';
+    fi.value = ''; document.getElementById('scenarioFileName').textContent = 'Seleccionar Excel de escenario';
+    document.getElementById('scenarioName').value = '';
+    await loadScenarios();
+  }
+}
+
+// scenarios loaded via tab onclick
+
+// ── HC Map ────────────────────────────────────────────────────────────────────
+let hcLayer = null;
+let hcResults = null;
+
+// show/hide threshold field
+document.addEventListener('DOMContentLoaded', () => {
+  const hcView = document.getElementById('hc-view');
+  if (hcView) hcView.addEventListener('change', () => {
+    document.getElementById('hc-threshold-row').style.display =
+      hcView.value === 'threshold' ? '' : 'none';
+  });
+});
+
+function hcColor(kw, maxKw) {
+  if (kw <= 0) return '#e05454';
+  const ratio = kw / maxKw;
+  if (ratio >= 0.66) return '#037A68';
+  if (ratio >= 0.33) return '#f59e0b';
+  return '#e07a35';
+}
+
+function hcColorThreshold(kw, threshold) {
+  if (kw <= 0)         return '#e05454';   // red: not admissible
+  if (kw >= threshold) return '#037A68';   // green: admissible
+  return '#f59e0b';                         // yellow: partial
+}
+
+async function runHCMap() {
+  const mode = document.getElementById('hc-mode').value;
+  const view = document.getElementById('hc-view').value;
+  const btn  = document.getElementById('hc-btn');
+  const logEl= document.getElementById('hc-log');
+  const progressEl = document.getElementById('hc-progress');
+  const legendEl   = document.getElementById('hc-legend');
+
+  btn.disabled = true; btn.textContent = 'Calculando...';
+  progressEl.style.display = 'block'; legendEl.style.display = 'none';
+  logEl.innerHTML = '';
+  if (hcLayer) { hcLayer.clearLayers(); }
+  else { hcLayer = L.layerGroup().addTo(map); }
+
+
+  const active = gridsData.find(g => g.active);
+  const voltage = active ? active.voltage : 'BT';
+
+  try {
+    const res = await fetch(API+'/api/hc/map', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode, voltage})
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const msg = line.slice(6).trim();
+        if (msg === 'done') break;
+        if (msg.startsWith('progress: ')) addLog(msg.slice(10));
+        else if (msg.startsWith('result: ')) {
+          hcResults = JSON.parse(msg.slice(8));
+          renderHCMap(hcResults, view, parseFloat(document.getElementById('hc-threshold').value)||50);
+          showHCControls();
+        } else if (msg.startsWith('error: ')) addLog('ERROR: '+msg.slice(7));
+      }
+    }
+  } catch(e) { addLog('Error: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='▶ Calcular HC completo'; }
+}
+
+function renderHCMap(data, view, threshold) {
+  if (!hcLayer) { hcLayer = L.layerGroup().addTo(map); }
+  hcLayer.clearLayers();
+
+  const values = data.buses.map(b => b.hosting_kw);
+  const maxKw  = Math.max(...values, 1);
+
+  // Render each bus
+  for (const b of data.buses) {
+    const bus = networkData && networkData.buses.find(x => x.id === b.bus_id);
+    if (!bus || !bus.lat) continue;
+    const color = view === 'threshold'
+      ? hcColorThreshold(b.hosting_kw, threshold)
+      : hcColor(b.hosting_kw, maxKw);
+
+    L.circleMarker([bus.lat, bus.lon], {
+      radius:7, fillColor:color, color:'#fff', weight:1.5, fillOpacity:.9
+    }).bindTooltip(
+      '<b>'+b.bus_name.split('_').slice(-1)[0]+'</b><br>HC: <b>'+
+      (b.at_limit ? '≥'+b.hosting_kw : b.hosting_kw)+' kW</b>'+
+      (b.saturated ? '<br>Red saturada' : ''),
+      {className:'tt-gridfy'}
+    ).addTo(hcLayer);
+  }
+
+  // Legend
+  const legendEl = document.getElementById('hc-legend');
+  const contentEl = document.getElementById('hc-legend-content');
+  legendEl.style.display = 'block';
+  if (view === 'threshold') {
+    contentEl.innerHTML =
+      '<div class="legend-row"><div class="legend-dot" style="background:#037A68"></div>Admisible (HC ≥ '+threshold+' kW)</div>'+
+      '<div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>Capacidad parcial (HC > 0)</div>'+
+      '<div class="legend-row"><div class="legend-dot" style="background:#e05454"></div>No admisible (HC = 0)</div>';
+  } else {
+    const p33 = Math.round(maxKw*0.33), p66 = Math.round(maxKw*0.66);
+    contentEl.innerHTML =
+      '<div class="legend-row"><div class="legend-dot" style="background:#037A68"></div>> '+p66+' kW — Alta capacidad</div>'+
+      '<div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>'+p33+' – '+p66+' kW — Media</div>'+
+      '<div class="legend-row"><div class="legend-dot" style="background:#e07a35"></div>1 – '+p33+' kW — Baja</div>'+
+      '<div class="legend-row"><div class="legend-dot" style="background:#e05454"></div>0 kW — Sin capacidad</div>';
+  }
+}
+
+// clearHCLayer defined below
+
+async function downloadCurrentScenario() {
+  await loadGrids();
+  const active = gridsData.find(g => g.active);
+  if (!active) { showToast('No hay red activa — carga una red primero','error'); return; }
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios/download-current');
+  if (!res.ok) { showToast('Error generando Excel','error'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'Escenario_actual_'+active.name.replace(/ /g,'_')+'.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── HC Download & Bus Search ──────────────────────────────────────────────────
+async function downloadHCResults() {
+  if (!hcResults) { showToast('Calcula el HC primero','error'); return; }
+
+  const res = await fetch(API+'/api/hc/download', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(hcResults)
+  });
+  if (!res.ok) { showToast('Error generando Excel','error'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'HC_'+hcResults.mode+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function filterHCBus(query) {
+  const el = document.getElementById('hc-search-results');
+  if (!hcResults || !query.trim()) { el.innerHTML = ''; return; }
+  const q = query.toLowerCase();
+  const matches = hcResults.buses
+    .filter(b => b.bus_name.toLowerCase().includes(q))
+    .slice(0, 10);
+  if (!matches.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:6px">Sin resultados</div>';
+    return;
+  }
+  el.innerHTML = matches.map(b => {
+    const color = b.hosting_kw <= 0 ? 'var(--red)' : b.hosting_kw >= hcResults.p_max_kw ? 'var(--brand)' : 'var(--yellow)';
+    return '<div class="list-item" onclick="focusHCBus('+b.bus_id+')" style="margin-bottom:4px;padding:6px 10px">'+
+      '<div class="list-item-info">'+
+        '<div class="list-item-name" style="font-size:11px">'+b.bus_name+'</div>'+
+        '<div class="list-item-sub">Límite: '+b.limits_violated+'</div>'+
+      '</div>'+
+      '<span style="font-size:11px;font-weight:700;color:'+color+'">'+b.hosting_kw+' kW</span>'+
+    '</div>';
+  }).join('');
+}
+
+function focusHCBus(busId) {
+  if (!networkData) return;
+  const bus = networkData.buses.find(b => b.id === busId);
+  if (!bus || !bus.lat) return;
+  map.setView([bus.lat, bus.lon], 18);
+  // Flash the bus
+  const flash = L.circleMarker([bus.lat, bus.lon],
+    {radius:16, fillColor:'#f59e0b', color:'#fff', weight:2, fillOpacity:.5})
+    .addTo(map);
+  setTimeout(() => map.removeLayer(flash), 2000);
+  showToast('Bus: '+bus.name,'success');
+}
+
+// Show bus search + download button after HC calculation
+function showHCControls() {
+  const searchEl = document.getElementById('hc-bus-search');
+  if (searchEl) searchEl.style.display = '';
+  const legendEl = document.getElementById('hc-legend');
+  if (legendEl) legendEl.style.display = 'block';
+}
+
+function clearHCLayer() {
+  if (hcLayer) hcLayer.clearLayers();
+  hcResults = null;
+  const legendEl = document.getElementById('hc-legend');
+  if (legendEl) legendEl.style.display = 'none';
+  const progressEl = document.getElementById('hc-progress');
+  if (progressEl) progressEl.style.display = 'none';
+  const searchEl = document.getElementById('hc-bus-search');
+  if (searchEl) { searchEl.style.display = 'none'; }
+  const inp = document.getElementById('hc-search-input');
+  if (inp) inp.value = '';
+  const res = document.getElementById('hc-search-results');
+  if (res) res.innerHTML = '';
+}
+
+
+
+// ── AC Bus search ─────────────────────────────────────────────────────────────
+function filterACBus(query) {
+  const dropdown = document.getElementById('ac-bus-dropdown');
+  if (!networkData || !query.trim()) { dropdown.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+  const matches = networkData.buses
+    .filter(b => b.name.toLowerCase().includes(q) && b.lat)
+    .slice(0, 12);
+  if (!matches.length) { dropdown.style.display = 'none'; return; }
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = matches.map(b => {
+    const short = b.name.split('_').slice(-2).join(' ');
+    return '<div class="ac-bus-opt" data-name="' + b.name +
+           '" data-lat="' + b.lat + '" data-lon="' + b.lon +
+           '" style="padding:7px 10px;font-size:11px;cursor:pointer;' +
+           'border-bottom:1px solid #e2e6ec;color:#111827">' +
+           '<b>' + short + '</b>' +
+           '<span style="color:#9ca3af;font-size:10px;margin-left:6px">' + b.vn_kv + ' kV</span>' +
+           '<div style="font-size:9px;color:#9ca3af">' + b.name + '</div>' +
+           '</div>';
+  }).join('');
+  dropdown.querySelectorAll('.ac-bus-opt').forEach(el => {
+    el.addEventListener('mouseover', function() { this.style.background = '#e8f5f2'; });
+    el.addEventListener('mouseout',  function() { this.style.background = ''; });
+    el.addEventListener('click', function() {
+      selectACBus(this.dataset.name, parseFloat(this.dataset.lat), parseFloat(this.dataset.lon));
+    });
+  });
+}
+
+function selectACBus(name, lat, lon) {
+  // Set hidden select value
+  const sel = document.getElementById('ac-bus');
+  for (const opt of sel.options) if (opt.value === name) { sel.value = name; break; }
+  // Update search input
+  document.getElementById('ac-bus-search').value = name;
+  document.getElementById('ac-bus-dropdown').style.display = 'none';
+  // Update info
+  document.getElementById('ac-bus-info').textContent = 'Nodo seleccionado: ' + name;
+  // Update map
+  acBusLat = lat; acBusLon = lon;
+  drawACPreview();
+  map.setView([lat, lon], 17);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('ac-bus-dropdown');
+  const inp = document.getElementById('ac-bus-search');
+  if (dd && inp && !dd.contains(e.target) && e.target !== inp) {
+    dd.style.display = 'none';
+  }
+});
+
+
+// ── GIS Import ────────────────────────────────────────────────────────────────
+async function importGIS() {
+  const tramos = document.getElementById('gis-tramos').files[0];
+  const trafo  = document.getElementById('gis-trafo').files[0];
+  const loads  = document.getElementById('gis-loads').files[0];
+  const name   = document.getElementById('gis-name').value.trim();
+  const desc   = document.getElementById('gis-desc').value.trim();
+  const statusEl = document.getElementById('gisStatus');
+
+  if (!tramos) { statusEl.textContent = 'Selecciona el CSV Tramo_baja'; return; }
+  if (!trafo)  { statusEl.textContent = 'Selecciona el CSV Transformador'; return; }
+  if (!name)   { statusEl.textContent = 'Introduce un nombre para la red'; return; }
+
+  statusEl.style.color = 'var(--muted)';
+  statusEl.textContent = 'Convirtiendo y validando GIS... (puede tardar)';
+
+  const fd = new FormData();
+  fd.append('tramos', tramos);
+  fd.append('trafo',  trafo);
+  if (loads) fd.append('loads', loads);
+  fd.append('name',        name);
+  fd.append('description', desc);
+  fd.append('voltage',     'BT');
+
+  try {
+    const res  = await fetch(API+'/api/gis/import', {method:'POST', body:fd});
+    const data = await res.json();
+    if (!res.ok) {
+      const errs = data.detail?.errors || [data.detail || 'Error desconocido'];
+      statusEl.style.color = 'var(--red)';
+      statusEl.innerHTML = 'Error ('+data.detail?.stage+'): ' + errs.join('<br>');
+    } else {
+      statusEl.style.color = 'var(--brand)';
+      statusEl.textContent = 'Importado: '+data.buses+' buses, '+data.lines+' lineas, '+data.loads+' cargas';
+      document.getElementById('selectorName').textContent = data.name;
+      document.getElementById('selectorDot').style.background = 'var(--brand)';
+      document.getElementById('btnSave').style.display = '';
+      document.getElementById('overlay').style.display = 'none';
+      pfResults = null;
+      await loadNetwork(); await loadGrids();
+      setTimeout(closeGridModal, 1800);
+    }
+  } catch(e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function previewGIS() {
+  const tramos = document.getElementById('gis-tramos').files[0];
+  const trafo  = document.getElementById('gis-trafo').files[0];
+  const loads  = document.getElementById('gis-loads').files[0];
+  const statusEl = document.getElementById('gisStatus');
+
+  if (!tramos || !trafo) { statusEl.textContent = 'Selecciona al menos Tramo_baja y Transformador'; return; }
+  statusEl.style.color = 'var(--muted)'; statusEl.textContent = 'Generando preview...';
+
+  const fd = new FormData();
+  fd.append('tramos', tramos); fd.append('trafo', trafo);
+  if (loads) fd.append('loads', loads);
+
+  try {
+    const res = await fetch(API+'/api/gis/preview', {method:'POST', body:fd});
+    if (!res.ok) {
+      const data = await res.json();
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = 'Error: ' + (data.detail?.errors?.join(', ') || data.detail);
+      return;
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'GIS_Preview_Gridfy.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+    statusEl.style.color = 'var(--brand)';
+    statusEl.textContent = 'Excel descargado — revisalo antes de importar';
+  } catch(e) {
+    statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Error: '+e.message;
+  }
+}
+
+async function downloadScenarioTemplate() {
+  const active = gridsData.find(g => g.active);
+  if (!active) { showToast('Carga una red primero', 'error'); return; }
+  const res = await fetch(API+'/api/networks/'+active.id+'/scenarios/template');
+  if (!res.ok) { showToast('Error generando plantilla', 'error'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'Plantilla_Escenario_'+active.name.replace(/ /g,'_')+'.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Trafo + ExtGrid panel ─────────────────────────────────────────────────────
+async function selectTrafo(id) {
+  switchTab('element');
+  const [resTrafo, resExt] = await Promise.all([
+    fetch(API+'/api/element/trafo/'+id),
+    fetch(API+'/api/extgrid')
+  ]);
+  const trafo = await resTrafo.json();
+  const extgrid = resExt.ok ? await resExt.json() : null;
+
+  const name = trafo.name || 'Transformador #'+id;
+
+  // Trafo params
+  const trafoParams = ['sn_mva','vk_percent','vkr_percent','tap_pos'];
+  let trafoHtml = '<div class="params-title">Parámetros del transformador</div>';
+  trafoParams.forEach(p => {
+    const v = trafo[p] !== null && trafo[p] !== undefined ? trafo[p] : '';
+    const desc = {sn_mva:'Potencia nominal (MVA)', vk_percent:'Tensión cc (%)',
+                  vkr_percent:'Resistencia cc (%)', tap_pos:'Posición de tap'}[p] || p;
+    trafoHtml += '<div class="param-row">'+
+      '<span class="param-label" title="'+p+'">'+desc+'</span>'+
+      '<input class="param-input" id="param-'+p+'" type="number" step="any" value="'+v+'"/>'+
+    '</div>';
+  });
+
+  // Tap info
+  trafoHtml += '<div style="font-size:10px;color:var(--muted);margin:6px 0 10px;padding:6px 8px;'+
+    'background:var(--panel2);border-radius:5px;border:1px solid var(--border)">'+
+    'tap_pos: 0 = nominal | +1 sube tensión BT ~1.25% | -1 baja tensión BT ~1.25%</div>';
+
+  trafoHtml += '<button class="btn btn-brand" style="width:100%;margin-bottom:10px" '+
+    'id="save-trafo-btn">Guardar transformador</button>';
+    'Guardar transformador</button>';
+
+  // ExtGrid section
+  let extHtml = '';
+  if (extgrid && extgrid.length > 0) {
+    const eg = extgrid[0];
+    extHtml = '<div class="section-title" style="margin-top:4px">Tensión en cabecera (Red externa)</div>'+
+      '<div class="params-title">Tensión de consigna del nudo slack</div>'+
+      '<div class="param-row">'+
+        '<span class="param-label">vm_pu (tensión consigna)</span>'+
+        '<input class="param-input" id="param-extgrid-vm" type="number" step="0.001" '+
+          'min="0.9" max="1.1" value="'+(eg.vm_pu||1.0)+'"/>'+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin:4px 0 10px;padding:6px 8px;'+
+        'background:var(--panel2);border-radius:5px;border:1px solid var(--border)">'+
+        'Rango típico: 0.95 – 1.05 p.u. | Valor actual: '+(eg.vm_pu||1.0)+' p.u.</div>'+
+      '<button class="btn btn-ghost" style="width:100%;margin-bottom:6px" '+
+        'onclick="saveExtGrid('+eg.id+')">Guardar tensión cabecera</button>';
+  }
+
+  document.getElementById('elementPanel').innerHTML =
+    '<div class="el-header">'+name+'</div>'+
+    '<div class="el-type">Transformador · ID '+id+'</div>'+
+    trafoHtml + extHtml;
+
+  // Attach save button listener after DOM is set
+  const saveBtn = document.getElementById('save-trafo-btn');
+  if (saveBtn) saveBtn.addEventListener('click', () => saveParams('trafo', id, trafoParams));
+}
+
+async function saveExtGrid(id) {
+  const vm = parseFloat(document.getElementById('param-extgrid-vm').value);
+  if (isNaN(vm) || vm < 0.8 || vm > 1.2) {
+    showToast('Valor fuera de rango (0.8 – 1.2 p.u.)','error'); return;
+  }
+  const res = await fetch(API+'/api/element/ext_grid/'+id, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({param:'vm_pu', value:vm})
+  });
+  if (res.ok) showToast('Tensión cabecera actualizada: '+vm+' p.u.','success');
+  else showToast('Error actualizando tensión','error');
+}
+
+
+// ── Loop line management ──────────────────────────────────────────────────────
+async function toggleLineService(lineId) {
+  const res = await fetch(API+'/api/line/'+lineId+'/toggle', {method:'POST'});
+  if (!res.ok) { showToast('Error al modificar la línea','error'); return; }
+  const data = await res.json();
+  pfResults = null;
+  await loadNetwork();
+  document.getElementById('statusDot').className='status-dot';
+  document.getElementById('statusLabel').textContent='Recalcula el Power Flow';
+  showToast('Línea '+(data.in_service?'cerrada (en servicio)':'abierta (fuera de servicio)'),'success');
+  // Refresh element panel
+  selectElement('line', lineId, {});
+}
+
+
+// ── Overview panel helpers ────────────────────────────────────────────────────
+function updateOverviewScenario(active, name) {
+  const el   = document.getElementById('overview-scenario');
+  const nameEl = document.getElementById('overview-scenario-name');
+  if (active === false) { el.style.display='none'; return; }
+  if (active && name)   { el.style.display=''; nameEl.textContent=name; return; }
+  // Auto-detect from active scenario banner
+  const banner = document.getElementById('active-scenario-banner');
+  if (banner && banner.style.display!=='none') {
+    const bname = document.getElementById('active-scenario-name')?.textContent;
+    el.style.display = ''; nameEl.textContent = bname || 'Escenario activo';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function saveExtGridFromOverview() {
+  const vm = parseFloat(document.getElementById('overview-vm-pu').value);
+  if (isNaN(vm)||vm<0.8||vm>1.2) { showToast('Valor fuera de rango','error'); return; }
+  const egRes = await fetch(API+'/api/extgrid');
+  if (!egRes.ok) return;
+  const eg = await egRes.json();
+  if (!eg.length) return;
+  const res = await fetch(API+'/api/element/ext_grid/'+eg[0].id, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({param:'vm_pu', value:vm})
+  });
+  if (res.ok) {
+    showToast('Tensión cabecera: '+vm+' p.u. — recalcula el PF','success');
+    pfResults=null;
+    document.getElementById('statusDot').className='status-dot';
+    document.getElementById('statusLabel').textContent='Recalcula el Power Flow';
+  } else showToast('Error','error');
+}
+
+
+// ── Network health panel ──────────────────────────────────────────────────────
+function renderNetHealth(data) {
+  const el = document.getElementById('net-health');
+  const itemsEl = document.getElementById('net-health-items');
+  if (!el || !itemsEl) return;
+
+  const loopLines = data.loop_lines || [];
+  const openLines = (data.lines || []).filter(l => l.in_service === false);
+  const items = [];
+
+  if (loopLines.length > 0) {
+    const openLoops = openLines.filter(l => loopLines.includes(l.id));
+    const closedLoops = loopLines.length - openLoops.length;
+    if (closedLoops > 0) {
+      items.push({
+        color: '#f97316', icon: '🔄',
+        text: closedLoops + ' bucle(s) cerrado(s) — pincha la línea naranja para abrir',
+        action: null
+      });
+    }
+    if (openLoops.length > 0) {
+      items.push({
+        color: '#037A68', icon: '✓',
+        text: openLoops.length + ' bucle(s) abierto(s)',
+        action: null
+      });
+    }
+  } else {
+    items.push({color:'#037A68', icon:'✓', text:'Sin bucles detectados', action:null});
+  }
+
+  if (items.length === 0) { el.style.display='none'; return; }
+  el.style.display = '';
+  itemsEl.innerHTML = items.map(item =>
+    '<div style="display:flex;align-items:flex-start;gap:8px;background:var(--panel2);' +
+    'border:1px solid var(--border);border-radius:6px;padding:8px 10px">' +
+      '<span style="font-size:14px;flex-shrink:0">' + item.icon + '</span>' +
+      '<span style="font-size:11px;color:var(--text2);line-height:1.4">' + item.text + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+</script>
+<!-- ── Modal guardar versión ── -->
+<div class="modal-overlay" id="saveModal">
+  <div class="save-modal">
+    <div class="modal-header">
+      <span class="modal-title">Guardar versión de la red</span>
+      <button class="modal-close" onclick="document.getElementById('saveModal').classList.remove('open')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+      Guarda el estado actual (cargas, generadores y parámetros modificados) como una versión nombrada.
+    </div>
+    <div class="form-card">
+      <div class="form-row">
+        <label class="form-label" for="saveVersionName">Nombre de la versión</label>
+        <input class="form-input" id="saveVersionName" type="text"
+          placeholder="Ej: Escenario fotovoltaica calle Norte"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="saveVersionDesc">Descripción (opcional)</label>
+        <input class="form-input" id="saveVersionDesc" type="text"
+          placeholder="Detalles del escenario…"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ghost" style="flex:1"
+        onclick="document.getElementById('saveModal').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-brand" style="flex:1" onclick="confirmSaveGrid()">Guardar versión</button>
+    </div>
+    <div id="saveStatus" style="font-size:11px;margin-top:10px;color:var(--muted);text-align:center"></div>
+  </div>
+</div>
+
+</body>
+</html>
