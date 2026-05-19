@@ -349,6 +349,10 @@ def convert_gis_to_gridfy_excel(
         nudo = str(row.get("Nudo", "")).strip().strip("'")
         pot  = _float(row.get("Pot. contratada (kW)", 0))
         fase = str(row.get("Fase", "RST")).strip()
+        cnae_raw = row.get("Código CNAE", "")
+        cnae = str(cnae_raw).strip().strip("'") if cnae_raw is not None else ""
+        if cnae in ("nan", ""):
+            cnae = ""
         if not cups or not nudo:
             continue
         rows_loads.append({
@@ -358,6 +362,7 @@ def convert_gis_to_gridfy_excel(
             "Pot. contratada (kW)":  pot,
             "P (MW)":                "",
             "Q (MVAR)":              "",
+            "CNAE":                  cnae,
         })
     df_loads_out = pd.DataFrame(rows_loads)
 
