@@ -13,6 +13,8 @@ from db.session import init_db, SessionLocal
 from db import crud
 from grid_network.manager import network_manager
 from grid_api.routes_network import router as network_router, set_net
+from paths import to_relative
+from db.path_migration import migrate_legacy_absolute_paths
 from grid_api.routes_studies  import router as studies_router
 from grid_api.routes_ac       import router as ac_router
 from grid_api.routes_scenarios import router as scenarios_router
@@ -50,6 +52,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def startup():
     init_db()
     print("[Gridfy] Base de datos inicializada")
+    # Normaliza rutas absolutas heredadas (compatibilidad pre-portable-paths)
+    migrate_legacy_absolute_paths()
     db = SessionLocal()
     try:
         if os.path.exists(EXCEL_PATH):
@@ -63,7 +67,7 @@ async def startup():
                 shutil.copy2(EXCEL_PATH, dest)
                 crud.create_network(db, name=SEED_NAME,
                     description="Red de BT Santa Ana 2",
-                    voltage="BT", excel_path=dest)
+                    voltage="BT", excel_path=to_relative(dest))
                 print(f"[Gridfy] Red '{SEED_NAME}' registrada")
         else:
             print("[Gridfy] Sin Excel de ejemplo")

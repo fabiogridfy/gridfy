@@ -13,10 +13,9 @@ from db.session import get_db
 from db import crud
 from grid_network.scenario import apply_scenario, validate_scenario_excel
 from grid_api.routes_network import get_net
+from paths import resolve, to_relative, REDES_DIR
 
 router = APIRouter()
-
-REDES_DIR = os.path.join(os.path.dirname(__file__), "..", "redes")
 
 
 def _scenario_folder(network_name: str) -> str:
@@ -81,11 +80,11 @@ async def upload_scenario(
         os.remove(excel_path)
         raise HTTPException(422, {"errors": errors})
 
-    # Registrar en BD
+    # Registrar en BD (ruta relativa)
     try:
         scenario = crud.create_scenario(
             db, network_id=network_id, name=name,
-            description=description, excel_path=excel_path,
+            description=description, excel_path=to_relative(excel_path),
         )
     except Exception as e:
         raise HTTPException(500, f"Error registrando en BD: {e}")
@@ -108,7 +107,7 @@ def apply_scenario_ep(network_id: int, scenario_id: int, db: Session = Depends(g
     net = get_net()
     if net is None or network_manager.network_id != network_id:
         try:
-            network_manager.load_from_excel(db_net.excel_path, db_net.id, db_net.name)
+            network_manager.load_from_excel(resolve(db_net.excel_path), db_net.id, db_net.name)
             set_net(network_manager.net)
             net = get_net()
         except Exception as e:
@@ -121,7 +120,7 @@ def apply_scenario_ep(network_id: int, scenario_id: int, db: Session = Depends(g
     if not scenario or scenario.network_id != network_id:
         raise HTTPException(404, "Escenario no encontrado")
 
-    result = apply_scenario(net, scenario.excel_path, voltage=db_net.voltage)
+    result = apply_scenario(net, resolve(scenario.excel_path), voltage=db_net.voltage)
 
     # Marcar como activo
     crud.set_active_scenario(db, network_id, scenario_id)
@@ -154,15 +153,16 @@ def delete_scenario(network_id: int, scenario_id: int, db: Session = Depends(get
     scenario = crud.get_scenario(db, scenario_id)
     if not scenario or scenario.network_id != network_id:
         raise HTTPException(404, "Escenario no encontrado")
-    if os.path.exists(scenario.excel_path):
+    sc_excel = resolve(scenario.excel_path)
+    if sc_excel and os.path.exists(sc_excel):
         import gc
         gc.collect()  # force close any open file handles
         try:
-            os.remove(scenario.excel_path)
+            os.remove(sc_excel)
         except PermissionError:
             import time
             time.sleep(0.5)
-            os.remove(scenario.excel_path)
+            os.remove(sc_excel)
     crud.delete_scenario(db, scenario_id)
     return {"ok": True}
 

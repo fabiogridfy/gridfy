@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 .env
 gridfy.db
+gridfy.db.bak
 redes/
 *.pickle
 *.p
