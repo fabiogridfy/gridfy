@@ -1787,11 +1787,42 @@ function selectGridVersion(id, name, hasSaved) {
       '<div class="list-item-sub">Estado inicial sin modificaciones</div></div>' +
       '<span style="font-size:10px;font-weight:700;color:var(--muted)">ORIGINAL</span>' +
     '</div>' +
-    '<div class="list-item" onclick="openVersions(' + id + ', \'' + name + '\')">' +
+    '<div class="list-item" onclick="openVersions(' + id + ', \'' + name + '\')" style="margin-bottom:6px">' +
       '<div class="list-item-info"><div class="list-item-name">Ver todas las versiones</div>' +
       '<div class="list-item-sub">Elige una versi&#243;n espec&#237;fica guardada</div></div>' +
       '<span style="font-size:10px;font-weight:700;color:var(--text2)">VER &#8594;</span>' +
+    '</div>' +
+    '<div class="list-item" onclick="downloadGridExcel(' + id + ', \'' + name + '\')">' +
+      '<div class="list-item-info"><div class="list-item-name">Descargar Excel</div>' +
+      '<div class="list-item-sub">Exporta la versi&#243;n aplicada en formato Excel Gridfy</div></div>' +
+      '<span style="font-size:10px;font-weight:700;color:var(--brand)">&#8595; XLSX</span>' +
     '</div></div>';
+}
+
+async function downloadGridExcel(id, name) {
+  try {
+    showToast('Generando Excel…', '');
+    const res = await fetch(API + '/api/grids/' + id + '/download-excel');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast('Error: ' + (err.detail || 'no se pudo generar el Excel'), 'error');
+      return;
+    }
+    const blob = await res.blob();
+    // Use filename from Content-Disposition if present
+    let filename = (name || 'red').replace(/\s+/g, '_') + '.xlsx';
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^"]+)"?/i);
+    if (m) filename = m[1];
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Excel descargado: ' + filename, 'success');
+  } catch (e) {
+    showToast('Error descargando Excel', 'error');
+  }
 }
 
 async function openVersions(id, name) {

@@ -8,12 +8,14 @@ Endpoints para gestión de redes:
   DELETE /api/grids/{id}      → eliminar red
   GET  /api/grids/active      → info de la red activa
 """
+import io
 import os
 import shutil
 from datetime import datetime
 
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from db.session import get_db
@@ -345,6 +347,55 @@ def load_version(network_id: int, body: LoadVersionRequest, db: Session = Depend
 
     return {"ok": True, "version": body.file, "buses": len(net.bus),
             "lines": len(net.line), "loads": len(net.load), "sgens": len(net.sgen)}
+
+
+# ── GET /api/grids/{id}/download-excel ────────────────────────────────────────
+@router.get("/grids/{network_id}/download-excel")
+def download_excel(network_id: int, db: Session = Depends(get_db)):
+    """
+    Descarga la red en formato Excel Gridfy de la versión aplicada:
+      - Si la red es la activa → usa el net en memoria (incluye modificaciones no guardadas)
+      - Si no es la activa pero tiene última versión guardada → carga ese pickle
+      - Si no hay pickle → reconstruye desde el Excel original
+    No modifica la red activa en ninguno de los casos.
+    """
+    import pandapower as pp
+    from grid_network.builder import build_network
+    from grid_network.excel_exporter import network_to_excel_bytes
+
+    db_net = crud.get_network(db, network_id)
+    if not db_net:
+        raise HTTPException(404, "Red no encontrada")
+
+    # Decidir de dónde sacamos el net sin tocar la red activa
+    if network_manager.network_id == network_id and network_manager.is_loaded():
+        net = network_manager.net
+        source = "activa"
+    else:
+        pickle = db_net.pickle_path
+        if pickle and os.path.exists(pickle):
+            net = pp.from_pickle(pickle)
+            source = "ultima_version"
+        elif db_net.excel_path and os.path.exists(db_net.excel_path):
+            net = build_network(db_net.excel_path)
+            source = "original"
+        else:
+            raise HTTPException(404, "No hay datos para esta red")
+
+    try:
+        xlsx_bytes = network_to_excel_bytes(net)
+    except Exception as e:
+        raise HTTPException(500, f"Error generando Excel: {e}")
+
+    safe_name = db_net.name.replace(" ", "_").replace("/", "_")
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"{safe_name}_{source}_{ts}.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(xlsx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── DELETE /api/grids/{id} ────────────────────────────────────────────────────
