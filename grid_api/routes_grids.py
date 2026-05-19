@@ -387,9 +387,12 @@ def download_excel(network_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(500, f"Error generando Excel: {e}")
 
-    safe_name = db_net.name.replace(" ", "_").replace("/", "_")
+    # Preserva espacios en el nombre; solo neutraliza chars inválidos para nombres de archivo
+    safe_name = db_net.name
+    for ch in ('/', '\\', ':', '*', '?', '"', '<', '>', '|'):
+        safe_name = safe_name.replace(ch, '_')
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"{safe_name}_{source}_{ts}.xlsx"
+    filename = f"{safe_name}-{source}-{ts}.xlsx"
 
     return StreamingResponse(
         io.BytesIO(xlsx_bytes),
