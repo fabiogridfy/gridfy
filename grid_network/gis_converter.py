@@ -185,6 +185,7 @@ def convert_gis_to_gridfy_excel(
 
         nombre = str(row.get("Identificador", f"LIN_{idx}")).strip().strip("'")
         padre  = str(row.get("Padre", "")).strip().strip("'")
+        seccion = _float(row.get("Sección del conductor (mm2)", 0)) or None
 
         rows_lineas.append({
             "Nombre":        nombre,
@@ -195,6 +196,7 @@ def convert_gis_to_gridfy_excel(
             "X/km":          round(x_km, 6),
             "I max (kA)":    round(i_max_ka, 6),
             "Conductor":     conductor_name,
+            "seccion_mm2":   seccion,
             "_Padre":        padre,  # auxiliar, se elimina antes de escribir el Excel
         })
     df_lineas = pd.DataFrame(rows_lineas)
