@@ -33,6 +33,7 @@ async def import_from_gis(
     description: str        = Form(""),
     voltage:     str        = Form("BT"),
     decisions:   str        = Form("{}"),
+    utm_zone:    str        = Form("auto"),
     db:          Session    = Depends(get_db),
 ):
     """
@@ -54,8 +55,9 @@ async def import_from_gis(
 
     # Convert to Gridfy Excel
     try:
+        zone = None if utm_zone == "auto" else int(utm_zone)
         excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes,
-                                                   loads_bytes or b"")
+                                                   loads_bytes or b"", utm_zone=zone)
     except Exception as e:
         raise HTTPException(422, {"stage": "conversion", "errors": [str(e)]})
 
@@ -205,7 +207,7 @@ async def preview_gis_conversion(
         raise HTTPException(422, {"errors": errors})
 
     try:
-        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes)
+        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes, utm_zone=None)
     except Exception as e:
         raise HTTPException(422, {"errors": [str(e)]})
 
@@ -243,7 +245,7 @@ async def diagnose_gis(
 
     # Convert to excel and build network for diagnosis
     try:
-        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes)
+        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes, utm_zone=None)
     except Exception as e:
         raise HTTPException(422, {"errors": [str(e)]})
 

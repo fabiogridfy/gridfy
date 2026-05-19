@@ -155,6 +155,15 @@
           <option value="excel">Excel Gridfy</option>
         </select>
       </div>
+      <div class="form-row" id="utm-zone-row">
+        <label class="form-label">Huso UTM</label>
+        <select class="form-select" id="utm-zone">
+          <option value="auto" selected>🔍 Detectar automáticamente</option>
+          <option value="29">29N — Canarias / oeste Galicia</option>
+          <option value="30">30N — Centro y sur España</option>
+          <option value="31">31N — Cataluña / Valencia / Baleares</option>
+        </select>
+      </div>
       <div id="gis-files">
         <div class="form-row">
           <div class="upload-zone" id="zone-tramos" onclick="document.getElementById('f-tramos').click()">
@@ -320,9 +329,11 @@ async function runDiagnosis() {
 
   try {
     const fd=new FormData();
+    const utmZone = document.getElementById('utm-zone')?.value || '30';
     if(document.getElementById('import-format').value==='gis') {
       fd.append('tramos',files.tramos); fd.append('trafo',files.trafo);
       if(files.loads) fd.append('loads',files.loads);
+      fd.append('utm_zone', utmZone);
     } else fd.append('file',files.excel);
 
     const res=await fetch(API+'/api/gis/diagnose',{method:'POST',body:fd});
@@ -798,6 +809,7 @@ function updateImportWarn() {
 async function doImport() {
   const name=document.getElementById('import-name').value.trim();
   const desc=document.getElementById('import-desc').value.trim();
+  const utmZone=document.getElementById('utm-zone')?.value||'30';
   const statusEl=document.getElementById('import-status');
   const btn=document.getElementById('btn-import');
   if(!name){statusEl.textContent='Introduce un nombre';return;}
@@ -806,7 +818,7 @@ async function doImport() {
   try {
     const fmt=document.getElementById('import-format').value;
     const fd=new FormData();
-    if(fmt==='gis'){fd.append('tramos',files.tramos);fd.append('trafo',files.trafo);if(files.loads)fd.append('loads',files.loads);}
+    if(fmt==='gis'){fd.append('tramos',files.tramos);fd.append('trafo',files.trafo);if(files.loads)fd.append('loads',files.loads);fd.append('utm_zone',utmZone||'30');}
     else fd.append('file',files.excel);
     fd.append('name',name); fd.append('description',desc); fd.append('voltage','BT');
     // Pass decisions

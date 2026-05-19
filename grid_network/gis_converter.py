@@ -54,6 +54,7 @@ def convert_gis_to_gridfy_excel(
     tramos_bytes: bytes,
     trafo_bytes:  bytes,
     loads_bytes:  bytes,
+    utm_zone:     int = None,  # None = auto-detect
 ) -> bytes:
     """
     Convierte los 3 CSVs GIS a un Excel en formato Gridfy.
@@ -66,6 +67,25 @@ def convert_gis_to_gridfy_excel(
     # ── 1. Extraer todos los buses únicos de los tramos ───────────────────────
     # Cada nudo tiene coordenadas asociadas al inicio o fin de algún tramo
     nudo_coords = {}  # nudo_id -> (X, Y)
+
+    # Auto-detect UTM zone from first valid coordinate
+    if utm_zone is None:
+        for _, row in df_tramos.iterrows():
+            xi_test = row.get("Coordenada X inicio", None)
+            yi_test = row.get("Coordenada Y inicio", None)
+            if xi_test and yi_test:
+                try:
+                    x_test = _float(xi_test)
+                    y_test = _float(yi_test)
+                    if x_test > 0 and y_test > 0:
+                        utm_zone = _detect_utm_zone(x_test, y_test)
+                        print(f"[gis_converter] Huso UTM detectado automáticamente: {utm_zone}N")
+                        break
+                except Exception:
+                    continue
+        if utm_zone is None:
+            utm_zone = 30
+            print("[gis_converter] Huso UTM: usando zona 30N por defecto")
 
     for _, row in df_tramos.iterrows():
         ni = str(row.get("Nudo inicio", "")).strip().strip("'")
