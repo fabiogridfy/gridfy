@@ -18,7 +18,8 @@ from grid_network.geodata import get_bus_geo
 TERMINAL_COLS  = ["Nombre", "Tensión", "X", "Y"]
 EXTGRID_COLS   = ["Nombre", "Terminal"]
 LINEAS_COLS    = ["Nombre", "Terminal_i", "Terminal_j", "Longitud (km)",
-                  "R/km", "X/km", "I max (kA)", "in_service"]
+                  "R/km", "X/km", "I max (kA)", "Conductor", "seccion_mm2",
+                  "in_service"]
 TRAFO_COLS     = ["code", "primary_node_code", "secondary_node_code",
                   "nominal_apparent_power_kVA", "Tension HV", "Tension LV",
                   "vk_percent", "vkr_percent", "pfe_kw", "i0_percent"]
@@ -77,8 +78,12 @@ def network_to_excel_bytes(net) -> bytes:
     df_ext = pd.DataFrame(rows_ext, columns=EXTGRID_COLS)
 
     # ── Líneas ────────────────────────────────────────────────────────────────
+    has_conductor = "conductor"   in net.line.columns
+    has_seccion   = "seccion_mm2" in net.line.columns
     rows_line = []
     for idx, row in net.line.iterrows():
+        cond_val    = row.get("conductor")   if has_conductor else None
+        seccion_val = row.get("seccion_mm2") if has_seccion   else None
         rows_line.append({
             "Nombre":         row.get("name", f"L_{idx}"),
             "Terminal_i":     _bus_name(net, row["from_bus"]),
@@ -87,6 +92,8 @@ def network_to_excel_bytes(net) -> bytes:
             "R/km":           _safe_float(row["r_ohm_per_km"]),
             "X/km":           _safe_float(row["x_ohm_per_km"]),
             "I max (kA)":     _safe_float(row["max_i_ka"]),
+            "Conductor":      None if (cond_val is None or (isinstance(cond_val, float) and math.isnan(cond_val))) else str(cond_val),
+            "seccion_mm2":    _safe_float(seccion_val) if seccion_val is not None else None,
             "in_service":     bool(row.get("in_service", True)),
         })
     df_lin = pd.DataFrame(rows_line, columns=LINEAS_COLS)

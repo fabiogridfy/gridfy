@@ -50,9 +50,11 @@ def build_network(excel_path: str, timezone: int = 30, geozone: str = "N") -> pp
                                s_sc_max_mva=1000, rx_max=0.1, x0x_max=1, r0x0_max=0.1)
 
     # ── Líneas ────────────────────────────────────────────────────────────────
+    has_conductor = "Conductor"   in df_Lines.columns
+    has_seccion   = "seccion_mm2" in df_Lines.columns
     for _, x in df_Lines.iterrows():
         try:
-            pp.create_line_from_parameters(
+            line_idx = pp.create_line_from_parameters(
                 net,
                 from_bus=fb(x["Terminal_i"]),
                 to_bus=fb(x["Terminal_j"]),
@@ -66,6 +68,11 @@ def build_network(excel_path: str, timezone: int = 30, geozone: str = "N") -> pp
                 max_i_ka=x["I max (kA)"],
                 name=x["Nombre"],
             )
+            # Preservar metadatos del conductor para round-trip
+            if has_conductor and pd.notna(x.get("Conductor")):
+                net.line.at[line_idx, "conductor"]   = str(x["Conductor"])
+            if has_seccion and pd.notna(x.get("seccion_mm2")):
+                net.line.at[line_idx, "seccion_mm2"] = float(x["seccion_mm2"])
         except Exception as e:
             print(f"  [builder] Línea {_} error: {e}")
 
