@@ -23,7 +23,7 @@ LINEAS_COLS    = ["Nombre", "Terminal_i", "Terminal_j", "Longitud (km)",
 TRAFO_COLS     = ["code", "primary_node_code", "secondary_node_code",
                   "nominal_apparent_power_kVA", "Tension HV", "Tension LV",
                   "vk_percent", "vkr_percent", "pfe_kw", "i0_percent"]
-LOADS_COLS     = ["CUPS", "Terminal", "P (MW)", "Q (MVAR)", "Pot. contratada (kW)"]
+LOADS_COLS     = ["CUPS", "Terminal", "P (MW)", "Q (MVAR)", "Pot. contratada (kW)", "CNAE"]
 GEN_COLS       = ["CUPS", "Terminal", "P (MW)", "Q (MVAR)", "Pot. contratada (kW)"]
 
 
@@ -117,15 +117,18 @@ def network_to_excel_bytes(net) -> bytes:
     df_tr = pd.DataFrame(rows_tr, columns=TRAFO_COLS)
 
     # ── Loads_Data ────────────────────────────────────────────────────────────
+    has_cnae = "cnae" in net.load.columns
     rows_ld = []
     for idx, row in net.load.iterrows():
         nom_kw = _safe_float(row.get("max_p_mw", 0)) * 1000.0
+        cnae_val = row.get("cnae") if has_cnae else None
         rows_ld.append({
             "CUPS":                 row.get("name", f"load_{idx}"),
             "Terminal":             _bus_name(net, row["bus"]),
             "P (MW)":               _safe_float(row["p_mw"]),
             "Q (MVAR)":             _safe_float(row["q_mvar"]),
             "Pot. contratada (kW)": nom_kw,
+            "CNAE":                 None if (cnae_val is None or (isinstance(cnae_val, float) and math.isnan(cnae_val))) else str(cnae_val),
         })
     df_ld = pd.DataFrame(rows_ld, columns=LOADS_COLS)
 

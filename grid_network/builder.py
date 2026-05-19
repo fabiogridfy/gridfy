@@ -101,6 +101,7 @@ def build_network(excel_path: str, timezone: int = 30, geozone: str = "N") -> pp
     # ── Cargas (Loads_Data) ───────────────────────────────────────────────────
     try:
         df_loads = pd.read_excel(excel_path, sheet_name="Loads_Data")
+        has_cnae = "CNAE" in df_loads.columns
         for _, x in df_loads.iterrows():
             b = fb(x["Terminal"])
             if b is None:
@@ -110,9 +111,17 @@ def build_network(excel_path: str, timezone: int = 30, geozone: str = "N") -> pp
             p_mw   = float(x["P (MW)"])   if pd.notna(x.get("P (MW)"))   else 0.0
             q_mvar = float(x["Q (MVAR)"]) if pd.notna(x.get("Q (MVAR)")) else 0.0
             nom_p  = float(x.get("Pot. contratada (kW)", 0)) * 1e-3
-            pp.create_load(net, bus=b, name=str(x.get("CUPS", f"load_{_}")),
-                           p_mw=p_mw, q_mvar=q_mvar,
-                           max_p_mw=nom_p)   # guardamos la potencia contratada como límite
+            load_idx = pp.create_load(net, bus=b, name=str(x.get("CUPS", f"load_{_}")),
+                                      p_mw=p_mw, q_mvar=q_mvar,
+                                      max_p_mw=nom_p)   # guardamos la potencia contratada como límite
+            if has_cnae and pd.notna(x.get("CNAE")):
+                cnae_val = x["CNAE"]
+                if isinstance(cnae_val, float) and cnae_val.is_integer():
+                    cnae_str = str(int(cnae_val))
+                else:
+                    cnae_str = str(cnae_val).strip()
+                if cnae_str:
+                    net.load.at[load_idx, "cnae"] = cnae_str
         print(f"  [builder] Cargas: {len(net.load)}")
     except Exception as e:
         print(f"  [builder] Loads_Data error: {e}")
