@@ -28,6 +28,7 @@ async def import_from_gis(
     tramos:      UploadFile = File(..., description="CSV Tramo_baja del GIS"),
     trafo:       UploadFile = File(..., description="CSV Transformador del GIS"),
     loads:       UploadFile = File(None, description="CSV Punto_D-C del GIS (opcional)"),
+    gens:        UploadFile = File(None, description="CSV Punto_G-D del GIS (opcional, generadores)"),
     name:        str        = Form(...),
     description: str        = Form(""),
     voltage:     str        = Form("BT"),
@@ -46,6 +47,7 @@ async def import_from_gis(
     tramos_bytes = await tramos.read()
     trafo_bytes  = await trafo.read()
     loads_bytes  = (await loads.read()) if loads else None
+    gens_bytes   = (await gens.read())  if gens  else None
 
     # Validate GIS structure
     errors = validate_gis_files(tramos_bytes, trafo_bytes, loads_bytes)
@@ -56,7 +58,8 @@ async def import_from_gis(
     try:
         zone = None if utm_zone == "auto" else int(utm_zone)
         excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes,
-                                                   loads_bytes or b"", utm_zone=zone)
+                                                   loads_bytes or b"", utm_zone=zone,
+                                                   gens_bytes=gens_bytes)
     except Exception as e:
         raise HTTPException(422, {"stage": "conversion", "errors": [str(e)]})
 
@@ -75,6 +78,8 @@ async def import_from_gis(
     with open(os.path.join(gis_folder, "Transformador.csv"), "wb") as f: f.write(trafo_bytes)
     if loads_bytes:
         with open(os.path.join(gis_folder, "Punto_DC.csv"), "wb") as f: f.write(loads_bytes)
+    if gens_bytes:
+        with open(os.path.join(gis_folder, "Punto_GD.csv"), "wb") as f: f.write(gens_bytes)
 
     # Parse decisions from frontend
     import json as _json
@@ -196,6 +201,7 @@ async def preview_gis_conversion(
     tramos: UploadFile = File(...),
     trafo:  UploadFile = File(...),
     loads:  UploadFile = File(None),
+    gens:   UploadFile = File(None),
 ):
     """
     Convierte GIS a Excel Gridfy y lo devuelve para descarga/previsualización,
@@ -204,13 +210,15 @@ async def preview_gis_conversion(
     tramos_bytes = await tramos.read()
     trafo_bytes  = await trafo.read()
     loads_bytes  = (await loads.read()) if loads else b""
+    gens_bytes   = (await gens.read())  if gens  else None
 
     errors = validate_gis_files(tramos_bytes, trafo_bytes, loads_bytes or None)
     if errors:
         raise HTTPException(422, {"errors": errors})
 
     try:
-        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes, utm_zone=None)
+        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes,
+                                                   utm_zone=None, gens_bytes=gens_bytes)
     except Exception as e:
         raise HTTPException(422, {"errors": [str(e)]})
 
@@ -230,6 +238,7 @@ async def diagnose_gis(
     tramos: UploadFile = File(...),
     trafo:  UploadFile = File(...),
     loads:  UploadFile = File(None),
+    gens:   UploadFile = File(None),
 ):
     """
     Analiza los CSVs GIS y devuelve un informe de problemas SIN importar la red.
@@ -241,6 +250,7 @@ async def diagnose_gis(
     tramos_bytes = await tramos.read()
     trafo_bytes  = await trafo.read()
     loads_bytes  = (await loads.read()) if loads else b""
+    gens_bytes   = (await gens.read())  if gens  else None
 
     errors = validate_gis_files(tramos_bytes, trafo_bytes, loads_bytes or None)
     if errors:
@@ -248,7 +258,8 @@ async def diagnose_gis(
 
     # Convert to excel and build network for diagnosis
     try:
-        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes, utm_zone=None)
+        excel_bytes = convert_gis_to_gridfy_excel(tramos_bytes, trafo_bytes, loads_bytes,
+                                                   utm_zone=None, gens_bytes=gens_bytes)
     except Exception as e:
         raise HTTPException(422, {"errors": [str(e)]})
 

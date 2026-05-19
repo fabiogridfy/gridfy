@@ -55,14 +55,16 @@ def convert_gis_to_gridfy_excel(
     trafo_bytes:  bytes,
     loads_bytes:  bytes,
     utm_zone:     int = None,  # None = auto-detect
+    gens_bytes:   bytes | None = None,  # opcional: Punto G-D.csv (generadores)
 ) -> bytes:
     """
-    Convierte los 3 CSVs GIS a un Excel en formato Gridfy.
+    Convierte los 3 CSVs GIS (+ generadores opcional) a un Excel en formato Gridfy.
     Devuelve el contenido del Excel como bytes.
     """
     df_tramos = _read_csv(tramos_bytes)
     df_trafo  = _read_csv(trafo_bytes)
     df_loads  = _read_csv(loads_bytes)
+    df_gens   = _read_csv(gens_bytes) if gens_bytes else None
 
     # ── 1. Extraer todos los buses únicos de los tramos ───────────────────────
     # Cada nudo tiene coordenadas asociadas al inicio o fin de algún tramo
@@ -370,6 +372,32 @@ def convert_gis_to_gridfy_excel(
     if not df_loads_out.empty and loads_relocations:
         df_loads_out["Terminal"] = df_loads_out["Terminal"].replace(loads_relocations)
 
+    # ── 6c. Gen_Data (opcional, desde Punto G-D.csv) ──────────────────────────
+    rows_gens = []
+    if df_gens is not None:
+        for _, row in df_gens.iterrows():
+            cil = str(row.get("CIL", "")).strip().strip("'")
+            if not cil:
+                continue
+            # Si CIL acaba en "001", quitarlo
+            cups = cil[:-3] if cil.endswith("001") else cil
+            nudo = str(row.get("Nudo", "")).strip().strip("'")
+            if not nudo:
+                continue
+            pot = _float(row.get("Potencia instalada kVA", 0))
+            rows_gens.append({
+                "CUPS":                 cups,
+                "Terminal":              nudo,
+                "Pot. contratada (kW)":  pot,
+                "P (MW)":                "",
+                "Q (MVAR)":              "",
+            })
+    df_gens_out = pd.DataFrame(rows_gens) if rows_gens else pd.DataFrame()
+
+    # Aplicar también la reasignación de terminales desdoblados
+    if not df_gens_out.empty and loads_relocations:
+        df_gens_out["Terminal"] = df_gens_out["Terminal"].replace(loads_relocations)
+
     # ── 6b. Remove buses not connected to any line ───────────────────────────
     # Buses from Punto_D-C that don't appear in any tramo are isolated
     connected_nudos = set()
@@ -387,6 +415,10 @@ def convert_gis_to_gridfy_excel(
     # Filter loads to only buses that exist in terminal
     if not df_loads_out.empty:
         df_loads_out = df_loads_out[df_loads_out["Terminal"].isin(connected_nudos)].reset_index(drop=True)
+
+    # Filter gens igual que las cargas: solo terminales del modelo
+    if not df_gens_out.empty:
+        df_gens_out = df_gens_out[df_gens_out["Terminal"].isin(connected_nudos)].reset_index(drop=True)
 
     # ── 7. Write Excel ────────────────────────────────────────────────────────
     BRAND = "037A68"; WHITE = "FFFFFF"; LIGHT = "E8F5F2"; MUTED = "F5F6F8"
@@ -419,6 +451,10 @@ def convert_gis_to_gridfy_excel(
     write_sheet("Transformadores", df_trafos)
     if not df_loads_out.empty:
         write_sheet("Loads_Data",  df_loads_out)
+    # Gen_Data: solo si hay generadores que conectan a algún terminal del modelo
+    if not df_gens_out.empty:
+        write_sheet("Gen_Data",    df_gens_out)
+        print(f"  [gis_converter] Generadores creados: {len(df_gens_out)}")
 
     buf = io.BytesIO()
     wb.save(buf)

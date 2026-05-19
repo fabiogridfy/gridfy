@@ -185,6 +185,13 @@
           </div>
           <input type="file" id="f-loads" accept=".csv" style="display:none" onchange="onFile('loads',this)"/>
         </div>
+        <div class="form-row">
+          <div class="upload-zone" id="zone-gens" onclick="document.getElementById('f-gens').click()">
+            <div class="upload-zone-label" id="lbl-gens">📄 Punto_G-D.csv (opcional)</div>
+            <div class="upload-zone-sub">CSV de generadores</div>
+          </div>
+          <input type="file" id="f-gens" accept=".csv" style="display:none" onchange="onFile('gens',this)"/>
+        </div>
       </div>
       <div id="excel-file" style="display:none">
         <div class="form-row">
@@ -333,6 +340,7 @@ async function runDiagnosis() {
     if(document.getElementById('import-format').value==='gis') {
       fd.append('tramos',files.tramos); fd.append('trafo',files.trafo);
       if(files.loads) fd.append('loads',files.loads);
+      if(files.gens)  fd.append('gens', files.gens);
       fd.append('utm_zone', utmZone);
     } else fd.append('file',files.excel);
 
@@ -818,7 +826,7 @@ async function doImport() {
   try {
     const fmt=document.getElementById('import-format').value;
     const fd=new FormData();
-    if(fmt==='gis'){fd.append('tramos',files.tramos);fd.append('trafo',files.trafo);if(files.loads)fd.append('loads',files.loads);fd.append('utm_zone',utmZone||'30');}
+    if(fmt==='gis'){fd.append('tramos',files.tramos);fd.append('trafo',files.trafo);if(files.loads)fd.append('loads',files.loads);if(files.gens)fd.append('gens',files.gens);fd.append('utm_zone',utmZone||'30');}
     else fd.append('file',files.excel);
     fd.append('name',name); fd.append('description',desc); fd.append('voltage','BT');
     // Pass decisions
