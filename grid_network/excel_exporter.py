@@ -93,7 +93,8 @@ def network_to_excel_bytes(net) -> bytes:
             "X/km":           _safe_float(row["x_ohm_per_km"]),
             "I max (kA)":     _safe_float(row["max_i_ka"]),
             "Conductor":      None if (cond_val is None or (isinstance(cond_val, float) and math.isnan(cond_val))) else str(cond_val),
-            "seccion_mm2":    _safe_float(seccion_val) if seccion_val is not None else None,
+            "seccion_mm2":    (None if seccion_val is None or (isinstance(seccion_val, float) and math.isnan(seccion_val))
+                               else _safe_float(seccion_val, default=None)),
             "in_service":     bool(row.get("in_service", True)),
         })
     df_lin = pd.DataFrame(rows_line, columns=LINEAS_COLS)

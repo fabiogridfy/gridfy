@@ -280,6 +280,10 @@ def create_acometida(body: CreateAcometidaBody):
         name=f"ACOM_{body.name}",
         in_service=True,
     )
+    # Preservar el nombre del conductor y la sección para el Excel descargable
+    net.line.at[new_line, "conductor"]   = cond.get("name") or body.conductor
+    if cond.get("seccion_mm2") is not None:
+        net.line.at[new_line, "seccion_mm2"] = float(cond["seccion_mm2"])
 
     # 3. Load or sgen
     if body.is_gen:

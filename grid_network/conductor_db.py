@@ -41,11 +41,17 @@ def _load_db():
             name = str(row.get('conductor_type', '')).strip()
             if not name or name == 'nan':
                 continue
+            seccion_raw = row.get('seccion_mm2')
+            try:
+                seccion = float(seccion_raw) if seccion_raw is not None and str(seccion_raw) != 'nan' else None
+            except (TypeError, ValueError):
+                seccion = None
             _conductor_db[_normalize(name)] = {
                 'name':        name,
                 'r_ohm_per_km': float(row.get('resistance_p_ohm_km', 0.641)),
                 'x_ohm_per_km': float(row.get('reactance_ohm_km', 0.083)),
                 'i_max_ka':     float(row.get('I_max', 100)) / 1000.0,  # A → kA
+                'seccion_mm2':  seccion,
             }
         print(f"[conductor_db] Cargados {len(_conductor_db)} conductores")
     except Exception as e:
@@ -70,6 +76,7 @@ def _load_db():
                 'r_ohm_per_km': vals['r'],
                 'x_ohm_per_km': vals['x'],
                 'i_max_ka':     vals['i'],
+                'seccion_mm2':  _extract_section_mm2(name_upper),
             }
 
     _db_loaded = True
@@ -104,11 +111,13 @@ def get_conductor_params(conductor_name: str) -> dict:
         r_km = rho / section
         i_max = _estimate_imax(section, is_al)
         print(f"[conductor_db] '{conductor_name}' no encontrado — estimado por sección {section}mm²")
-        return {'name': conductor_name, 'r_ohm_per_km': r_km, 'x_ohm_per_km': 0.083, 'i_max_ka': i_max}
+        return {'name': conductor_name, 'r_ohm_per_km': r_km, 'x_ohm_per_km': 0.083,
+                'i_max_ka': i_max, 'seccion_mm2': section}
 
     # 4. Default fallback
     print(f"[conductor_db] '{conductor_name}' no encontrado — usando valores por defecto")
-    return {'name': conductor_name, 'r_ohm_per_km': 0.641, 'x_ohm_per_km': 0.083, 'i_max_ka': 0.100}
+    return {'name': conductor_name, 'r_ohm_per_km': 0.641, 'x_ohm_per_km': 0.083,
+            'i_max_ka': 0.100, 'seccion_mm2': None}
 
 
 def _extract_section_mm2(name: str) -> float | None:
