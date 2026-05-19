@@ -139,7 +139,7 @@ async def import_from_gis(
                     t_idx = int(net.bus[t_mask].index[0])
                     s_idx = int(net.bus[s_mask].index[0])
                     cond  = get_conductor_params(conductor)
-                    _pp.create_line_from_parameters(
+                    new_idx = _pp.create_line_from_parameters(
                         net,
                         from_bus      = s_idx,
                         to_bus        = t_idx,
@@ -151,6 +151,10 @@ async def import_from_gis(
                         name          = f"CONN_{source[-8:]}_{target[-8:]}",
                         in_service    = True,
                     )
+                    # Preservar el nombre del conductor y la sección para el Excel descargable
+                    net.line.at[new_idx, "conductor"]   = cond.get("name") or conductor
+                    if cond.get("seccion_mm2") is not None:
+                        net.line.at[new_idx, "seccion_mm2"] = float(cond["seccion_mm2"])
                     print(f"  [import] Nueva línea: {source[-12:]} → {target[-12:]} "
                           f"| {conductor} | {dist_m:.0f}m")
                 else:
