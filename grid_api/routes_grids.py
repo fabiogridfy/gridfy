@@ -22,10 +22,9 @@ from db.session import get_db
 from db import crud
 from grid_network.manager import network_manager
 from grid_api.routes_network import set_net
+from paths import resolve, to_relative, REDES_DIR
 
 router = APIRouter()
-
-REDES_DIR = os.path.join(os.path.dirname(__file__), "..", "redes")
 
 
 def _pickle_path(network_name: str) -> str:
@@ -43,7 +42,7 @@ def list_grids(db: Session = Depends(get_db)):
             "name":        n.name,
             "description": n.description,
             "voltage":     n.voltage,
-            "has_saved":   bool(n.pickle_path and os.path.exists(n.pickle_path)),
+            "has_saved":   bool(n.pickle_path and os.path.exists(resolve(n.pickle_path))),
             "created_at":  n.created_at.isoformat() if n.created_at else None,
             "updated_at":  n.updated_at.isoformat() if n.updated_at else None,
             "active":      network_manager.network_id == n.id,
@@ -209,10 +208,10 @@ async def upload_grid(
             "log": pf_log,
         })
 
-    # Guardar en BD
+    # Guardar en BD (ruta relativa para portabilidad)
     db_net = crud.create_network(
         db, name=name, description=description,
-        voltage=voltage, excel_path=excel_path,
+        voltage=voltage, excel_path=to_relative(excel_path),
     )
 
     # Cargar como red activa
@@ -244,13 +243,13 @@ def load_grid(network_id: int, body: LoadRequest = None, db: Session = Depends(g
         raise HTTPException(404, "Red no encontrada")
 
     force_original = (body.from_original if body else False)
-    pickle = db_net.pickle_path
+    pickle = resolve(db_net.pickle_path)
 
     if not force_original and pickle and os.path.exists(pickle):
         network_manager.load_from_pickle(pickle, db_net.id, db_net.name)
         source = "ultima version guardada"
     else:
-        network_manager.load_from_excel(db_net.excel_path, db_net.id, db_net.name)
+        network_manager.load_from_excel(resolve(db_net.excel_path), db_net.id, db_net.name)
         source = "original (Excel)"
 
     set_net(network_manager.net)
@@ -294,7 +293,7 @@ def save_grid(network_id: int, body: SaveVersionRequest = None, db: Session = De
     # Always update the "latest" pointer too
     latest_path = _pickle_path(db_net.name)
     network_manager.save_to_pickle(latest_path)
-    crud.update_pickle(db, network_id, latest_path)
+    crud.update_pickle(db, network_id, to_relative(latest_path))
 
     return {"ok": True, "version_name": version_name, "saved_to": pickle_path, "name": db_net.name}
 
@@ -372,12 +371,13 @@ def download_excel(network_id: int, db: Session = Depends(get_db)):
         net = network_manager.net
         source = "activa"
     else:
-        pickle = db_net.pickle_path
+        pickle = resolve(db_net.pickle_path)
+        excel  = resolve(db_net.excel_path)
         if pickle and os.path.exists(pickle):
             net = pp.from_pickle(pickle)
             source = "ultima_version"
-        elif db_net.excel_path and os.path.exists(db_net.excel_path):
-            net = build_network(db_net.excel_path)
+        elif excel and os.path.exists(excel):
+            net = build_network(excel)
             source = "original"
         else:
             raise HTTPException(404, "No hay datos para esta red")

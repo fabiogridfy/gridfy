@@ -18,10 +18,9 @@ from grid_network.gis_converter import convert_gis_to_gridfy_excel, validate_gis
 from grid_network.builder import build_network
 from grid_api.routes_network import set_net
 from grid_network.manager import network_manager
+from paths import to_relative, REDES_DIR
 
 router = APIRouter()
-
-REDES_DIR = os.path.join(os.path.dirname(__file__), "..", "redes")
 
 
 @router.post("/gis/import")
@@ -164,10 +163,10 @@ async def import_from_gis(
     net["_loop_lines"] = [i for i in (net.get("_loop_lines") or []) 
                           if i not in open_loop_ids] + open_loop_ids
 
-    # Register in DB
+    # Register in DB (ruta relativa para portabilidad)
     db_net = crud.create_network(
         db, name=name, description=description,
-        voltage=voltage, excel_path=excel_path,
+        voltage=voltage, excel_path=to_relative(excel_path),
     )
 
     # Load the already-built (and decisions-applied) net directly into memory
