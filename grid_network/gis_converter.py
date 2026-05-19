@@ -194,6 +194,7 @@ def convert_gis_to_gridfy_excel(
             "R/km":          round(r_km, 6),
             "X/km":          round(x_km, 6),
             "I max (kA)":    round(i_max_ka, 6),
+            "Conductor":     conductor_name,
             "_Padre":        padre,  # auxiliar, se elimina antes de escribir el Excel
         })
     df_lineas = pd.DataFrame(rows_lineas)
