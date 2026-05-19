@@ -184,6 +184,7 @@ def convert_gis_to_gridfy_excel(
         i_max_ka = i_max_ka_db if i_max_ka_db else (i_max_a / 1000.0 if i_max_a > 0 else 0.100)
 
         nombre = str(row.get("Identificador", f"LIN_{idx}")).strip().strip("'")
+        padre  = str(row.get("Padre", "")).strip().strip("'")
 
         rows_lineas.append({
             "Nombre":        nombre,
@@ -193,8 +194,84 @@ def convert_gis_to_gridfy_excel(
             "R/km":          round(r_km, 6),
             "X/km":          round(x_km, 6),
             "I max (kA)":    round(i_max_ka, 6),
+            "_Padre":        padre,  # auxiliar, se elimina antes de escribir el Excel
         })
     df_lineas = pd.DataFrame(rows_lineas)
+
+    # ── 4b. Desdoblar terminales según feeder (Padre) ─────────────────────────
+    # Regla: si en un terminal confluyen líneas con distinto Padre, ese terminal
+    # se divide en N copias con sufijo _A, _B, _C... Excepción: terminales del
+    # transformador (Nudo BT / Nudo AT), que mantienen la conexión original.
+    from collections import defaultdict
+
+    protected_terms = set()
+    for _, trow in df_trafo.iterrows():
+        nat = str(trow.get("Nudo AT", "")).strip().strip("'")
+        nbt = str(trow.get("Nudo BT", "")).strip().strip("'")
+        if nat: protected_terms.add(nat)
+        if nbt: protected_terms.add(nbt)
+
+    # terminal -> [(idx, side, padre), ...]
+    term_to_lines = defaultdict(list)
+    for idx, lrow in df_lineas.iterrows():
+        term_to_lines[lrow["Terminal_i"]].append((idx, "i", lrow["_Padre"]))
+        term_to_lines[lrow["Terminal_j"]].append((idx, "j", lrow["_Padre"]))
+
+    # Decidir qué terminales se dividen y mapear cada Padre a un sufijo
+    split_map = {}            # terminal -> {padre: suffix}
+    loads_relocations = {}    # terminal_original -> terminal_A (para Loads_Data)
+    new_terminal_rows = []
+    terms_to_drop = []
+
+    for term, entries in term_to_lines.items():
+        if term in protected_terms:
+            continue
+        padres_no_vacios = sorted({p for (_, _, p) in entries if p})
+        if len(padres_no_vacios) <= 1:
+            continue  # mismo feeder (o todos sin padre) → no se divide
+
+        # Asignar sufijos _A, _B, _C... (orden alfabético del Padre, determinista)
+        suffixes = {}
+        for i, p in enumerate(padres_no_vacios):
+            if i < 26:
+                suffixes[p] = chr(ord("A") + i)
+            else:
+                # Caso muy improbable, sigue con _AA, _AB, etc.
+                suffixes[p] = "A" + chr(ord("A") + (i - 26))
+        split_map[term] = suffixes
+
+        # Renombrar columnas Terminal_i / Terminal_j en df_lineas
+        # Si una línea no tiene Padre (vacío) se asigna a la copia _A por defecto
+        first_suffix = sorted(suffixes.values())[0]
+        for idx, side, padre in entries:
+            suffix = suffixes.get(padre, first_suffix)
+            col    = "Terminal_i" if side == "i" else "Terminal_j"
+            df_lineas.at[idx, col] = f"{term}_{suffix}"
+
+        # Crear las nuevas filas en df_terminal
+        orig = df_terminal[df_terminal["Nombre"] == term]
+        if not orig.empty:
+            base = orig.iloc[0]
+            for padre, suffix in suffixes.items():
+                new_row = base.copy()
+                new_row["Nombre"] = f"{term}_{suffix}"
+                new_terminal_rows.append(new_row)
+            terms_to_drop.append(term)
+
+        # Cargas en este terminal → relocalizar a la copia _A
+        loads_relocations[term] = f"{term}_{first_suffix}"
+
+    if terms_to_drop:
+        df_terminal = df_terminal[~df_terminal["Nombre"].isin(terms_to_drop)].reset_index(drop=True)
+    if new_terminal_rows:
+        df_terminal = pd.concat([df_terminal, pd.DataFrame(new_terminal_rows)],
+                                ignore_index=True)
+
+    if split_map:
+        print(f"  [gis_converter] Terminales desdoblados por feeder: {len(split_map)}")
+
+    # Limpia columna auxiliar
+    df_lineas = df_lineas.drop(columns=["_Padre"], errors="ignore")
 
     # P3: Rename parallel lines (same Terminal_i + Terminal_j) with _1, _2 suffix
     pair_count = {}
@@ -280,6 +357,10 @@ def convert_gis_to_gridfy_excel(
             "Q (MVAR)":              "",
         })
     df_loads_out = pd.DataFrame(rows_loads)
+
+    # Reasignar cargas conectadas a terminales que se han desdoblado → copia _A
+    if not df_loads_out.empty and loads_relocations:
+        df_loads_out["Terminal"] = df_loads_out["Terminal"].replace(loads_relocations)
 
     # ── 6b. Remove buses not connected to any line ───────────────────────────
     # Buses from Punto_D-C that don't appear in any tramo are isolated
